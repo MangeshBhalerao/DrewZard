@@ -37,10 +37,10 @@ async def websocket_endpoint(websocket: WebSocket , room_id: str):
 
      try:
           while True:
-               data = await websocket.receive_text()
+               data = await websocket.receive_json()
 
                for connection in rooms[room_id]:
-                    await connection.send_text(data)
+                    await connection.send_json(data)
 
      except WebSocketDisconnect:
             rooms[room_id].remove(websocket)
