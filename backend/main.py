@@ -23,20 +23,27 @@ import asyncio
 
 app = FastAPI()
 
-connections = []  # store all connected clients
+rooms = {}  # store all connected clients
 
 
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
-    connections.append(websocket)
+@app.websocket("/ws/{room_id}")
+async def websocket_endpoint(websocket: WebSocket , room_id: str):
+     await websocket.accept()
+    
+     if room_id not in rooms:
+         rooms[room_id] = []
+    
+     rooms[room_id].append(websocket)
 
-    try:
-        while True:
-            await asyncio.sleep(2)
+     try:
+          while True:
+               data = await websocket.receive_text()
 
-            for connection in connections:
-                await connection.send_text("Hello everyone")
+               for connection in rooms[room_id]:
+                    await connection.send_text(data)
 
-    except WebSocketDisconnect:
-        connections.remove(websocket)
+     except WebSocketDisconnect:
+            rooms[room_id].remove(websocket)
+    
+            if not rooms[room_id]:
+                del rooms[room_id]
