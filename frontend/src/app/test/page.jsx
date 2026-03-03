@@ -1,11 +1,16 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef , useState } from "react";
 
 export default function CanvasPage() {
-  const canvasRef = useRef(null);
-
-  useEffect(() => {
+     const canvasRef = useRef(null);
+     
+     
+const [color, setColor] = useState("black");
+     
+useEffect(() => {
+       
+    let color = color;      
     const canvas = canvasRef.current;
     if (!canvas) return;
   
@@ -17,12 +22,14 @@ export default function CanvasPage() {
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
   
-      if (data.type === "start") {
+     if (data.type === "start") {
+        ctx.strokeStyle = data.color;       
         ctx.beginPath();
         ctx.moveTo(data.x, data.y);
       }
   
       if (data.type === "draw") {
+        ctx.strokeStyle = data.color;
         ctx.lineTo(data.x, data.y);
         ctx.stroke();
       }
@@ -44,7 +51,8 @@ export default function CanvasPage() {
       socket.send(JSON.stringify({
         type: "start",
         x,
-        y
+        y,
+        color: color
       }));
     };
   
@@ -58,7 +66,8 @@ export default function CanvasPage() {
       socket.send(JSON.stringify({
         type: "draw",
         x,
-        y
+        y,
+        color: color
       }));
     };
   
@@ -80,12 +89,24 @@ export default function CanvasPage() {
       canvas.removeEventListener("mousemove", draw);
       socket.close();
     };
-  }, []);
+  }, [color]);
     
 
   return (
     <div className="flex justify-center items-center h-screen">
-      <canvas
+         <div className="flex flex-col gap-4 mb-4">
+           <button onClick={() => setColor("red")} className="bg-red-500 px-4 py-2 text-white">
+             Red
+           </button>
+           <button onClick={() => setColor("blue")} className="bg-blue-500 px-4 py-2 text-white">
+             Blue
+           </button>
+           <button onClick={() => setColor("green")} className="bg-green-500 px-4 py-2 text-white">
+             Green
+           </button>
+         </div>
+            
+     <canvas
         ref={canvasRef}
         width={800}
         height={500}
