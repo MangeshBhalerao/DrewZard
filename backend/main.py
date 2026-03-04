@@ -60,10 +60,11 @@ def cancel_word_choice_timer(room_id: str):
         word_choice_tasks.pop(room_id, None)
 
 # CORS — allow frontend origin (set FRONTEND_URL env var in production)
-frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+_raw_origins = os.getenv("FRONTEND_URL", "http://localhost:3000")
+allowed_origins = list({o.strip() for o in _raw_origins.split(",") if o.strip()} | {"http://localhost:3000"})
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[frontend_url, "http://localhost:3000"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
