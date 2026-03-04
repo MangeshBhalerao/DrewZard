@@ -3,8 +3,26 @@ from fastapi.middleware.cors import CORSMiddleware
 from room_manager import RoomManager
 import asyncio
 import os
+import time
 
 app = FastAPI()
+
+# Background task: delete rooms that have been empty for > 2 minutes
+async def cleanup_empty_rooms():
+    while True:
+        await asyncio.sleep(30)  # Check every 30 seconds
+        now = time.time()
+        to_delete = [
+            room_id for room_id, room in list(manager.rooms.items())
+            if len(room.get("players", {})) == 0 and now - room.get("empty_since", now) > 120
+        ]
+        for room_id in to_delete:
+            del manager.rooms[room_id]
+            print(f"🗑️  Room {room_id} deleted after 2 minutes empty")
+
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(cleanup_empty_rooms())
 
 # CORS — allow frontend origin (set FRONTEND_URL env var in production)
 frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")

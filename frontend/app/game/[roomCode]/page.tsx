@@ -148,7 +148,13 @@ export default function Game() {
             ready: p.ready
           })));
           setTimeLeft(80);
-          setGuesses([]);
+          // Keep previous chat — just add a divider
+          setGuesses(prev => [...prev, {
+            id: Date.now(),
+            player: 'System',
+            message: `── Round ${data.round}: ${data.drawer} is drawing ──`,
+            isCorrect: false
+          }]);
           
           // Show drawer announcement
           setShowDrawerAnnouncement(true);
@@ -454,10 +460,10 @@ export default function Game() {
                     <span className="text-xs">{showColorPicker ? '▲' : '▼'}</span>
                   </button>
 
-                  {/* Color popup — opens upward so it doesn't overlap canvas */}
+                  {/* Color popup — opens downward */}
                   {showColorPicker && (
                     <div
-                      className="absolute bottom-full left-0 mb-2 p-2 z-50 grid grid-cols-4 gap-1.5"
+                      className="absolute top-full left-0 mt-2 p-2 z-50 grid grid-cols-4 gap-1.5"
                       style={{ backgroundColor: '#fff', border: '3px solid #2a2a2a', borderRadius: '10px', boxShadow: '4px 4px 0 rgba(42,42,42,0.3)' }}
                       onPointerDown={(e) => e.stopPropagation()}
                     >
@@ -487,10 +493,10 @@ export default function Game() {
                     <span className="text-xs">{showBrushPicker ? '▲' : '▼'}</span>
                   </button>
 
-                  {/* Brush size popup — opens upward */}
+                  {/* Brush size popup — opens downward */}
                   {showBrushPicker && (
                     <div
-                      className="absolute bottom-full mb-2 p-2 z-50 flex flex-col gap-2"
+                      className="absolute top-full mt-2 p-2 z-50 flex flex-col gap-2"
                       style={{ left: '90px', backgroundColor: '#fff', border: '3px solid #2a2a2a', borderRadius: '10px', boxShadow: '4px 4px 0 rgba(42,42,42,0.3)' }}
                       onPointerDown={(e) => e.stopPropagation()}
                     >
@@ -570,9 +576,9 @@ export default function Game() {
 
             {/* Sidebar */}
             <div className="flex flex-col gap-3">
-              {/* Scoreboard */}
+              {/* Scoreboard — bottom on mobile, top on desktop */}
               <div 
-                className="p-3"
+                className="order-2 lg:order-1 p-3"
                 style={{
                   backgroundColor: '#ffffff',
                   border: '4px solid #2a2a2a',
@@ -623,9 +629,9 @@ export default function Game() {
                 </div>
               </div>
 
-              {/* Guesses/Chat */}
+              {/* Guesses/Chat — top on mobile, bottom on desktop */}
               <div 
-                className="flex flex-col p-3"
+                className="order-1 lg:order-2 flex flex-col p-3"
                 style={{ minHeight: '320px',
                   backgroundColor: '#ffffff',
                   border: '4px solid #2a2a2a',

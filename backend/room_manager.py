@@ -57,6 +57,8 @@ class RoomManager:
             "score": 0,
             "ready": False
         }
+        # Someone joined — clear the empty timer
+        self.rooms[room_id].pop("empty_since", None)
         
         # Add to player order if not already there
         if username not in self.rooms[room_id]["player_order"]:
@@ -105,11 +107,13 @@ class RoomManager:
                 self.rooms[room_id]["admin"] = first_player["name"]
                 print(f"👑 {first_player['name']} is now admin of room {room_id}")
             
-            # Delete room if empty
+            # Don't delete immediately — mark as empty so a 2-min grace timer can run
             if len(self.rooms[room_id]["players"]) == 0:
-                del self.rooms[room_id]
-                print(f"🗑️  Room {room_id} deleted (empty)")
+                import time
+                self.rooms[room_id]["empty_since"] = time.time()
+                print(f"⏳ Room {room_id} is empty — will be deleted in 2 minutes if nobody rejoins")
             else:
+                self.rooms[room_id].pop("empty_since", None)
                 print(f"👋 {player_name} left room {room_id}. Remaining: {len(self.rooms[room_id]['players'])}")
     
     def get_players(self, room_id: str) -> List[str]:
