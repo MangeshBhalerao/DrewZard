@@ -5,6 +5,30 @@ import asyncio
 import os
 import time
 
+
+def levenshtein(a: str, b: str) -> int:
+    """Compute edit distance between two strings."""
+    if a == b:
+        return 0
+    if len(a) < len(b):
+        a, b = b, a
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a):
+        curr = [i + 1]
+        for j, cb in enumerate(b):
+            curr.append(min(prev[j + 1] + 1, curr[j] + 1, prev[j] + (0 if ca == cb else 1)))
+        prev = curr
+    return prev[-1]
+
+
+def is_close_enough(guess: str, word: str) -> bool:
+    """Return True if guess matches word exactly or within 20% edit distance."""
+    g, w = guess.strip().lower(), word.strip().lower()
+    if g == w:
+        return True
+    tolerance = max(1, round(len(w) * 0.2))
+    return levenshtein(g, w) <= tolerance
+
 app = FastAPI()
 
 # Background task: delete rooms that have been empty for > 2 minutes
@@ -27,6 +51,7 @@ async def startup_event():
 # ── Word-choice auto-pick ───────────────────────────────────────────────────
 WORD_CHOICE_SECONDS = 15  # seconds drawer has to pick a word
 word_choice_tasks: dict = {}
+turn_timer_tasks:  dict = {}   # server-side 80-second turn timers
 
 async def word_choice_timeout(room_id: str, words: list):
     """Auto-pick the first word if the drawer doesn't choose in time."""
@@ -34,17 +59,19 @@ async def word_choice_timeout(room_id: str, words: list):
     room = manager.rooms.get(room_id)
     if not room or room.get("current_word"):  # Already chosen
         return
-    word = words[0]
-    manager.set_word(room_id, word)
-    room["word_chosen_at"] = time.time()  # Start scoring clock
-    word_hint = "_" * len(word)
-    print(f"⏱️  Auto-picked word '{word}' for room {room_id}")
+    # Drawer didn't pick — skip their turn, move to next round
+    if room.get("turn_ended", False):
+        return
+    room["turn_ended"] = True
+    drawer_name = room.get("drawer", "?")
+    print(f"⏩  Drawer '{drawer_name}' didn't pick a word — skipping turn in room {room_id}")
     await manager.broadcast(room_id, {
-        "type": "word_chosen",
-        "word_hint": word_hint,
-        "word_length": len(word),
-        "auto_picked": True
+        "type": "chat",
+        "username": "System",
+        "message": f"{drawer_name} didn't pick a word — skipping!",
+        "isSystem": True
     })
+    await end_turn(room_id, reason="word_not_picked")
     word_choice_tasks.pop(room_id, None)
 
 def start_word_choice_timer(room_id: str, words: list):
@@ -58,6 +85,82 @@ def cancel_word_choice_timer(room_id: str):
     if room_id in word_choice_tasks:
         word_choice_tasks[room_id].cancel()
         word_choice_tasks.pop(room_id, None)
+
+# ── Turn timer (server-side 80 s) ───────────────────────────────────────────
+TURN_SECONDS = 80
+
+async def end_turn(room_id: str, reason: str = "time_up", drawer_bonus: int = 0):
+    """Broadcast turn_end then advance to the next round (or end the game)."""
+    cancel_turn_timer(room_id)
+    room = manager.rooms.get(room_id)
+    if not room:
+        return
+    correct_word = room.get("current_word", "")
+    drawer_name  = room.get("drawer", "")
+    await manager.broadcast(room_id, {
+        "type":         "turn_end",
+        "reason":       reason,
+        "correct_word": correct_word,
+        "drawer_bonus": drawer_bonus,
+        "drawer":       drawer_name,
+        "players":      manager.get_players_with_status(room_id)
+    })
+    await asyncio.sleep(3)
+    if manager.is_game_complete(room_id):
+        final_scores = manager.get_final_scores(room_id)
+        await manager.broadcast(room_id, {
+            "type":         "game_complete",
+            "final_scores": final_scores,
+            "winner":       final_scores[0]["name"] if final_scores else None
+        })
+    else:
+        round_info = manager.start_new_round(room_id)
+        if round_info:
+            players = manager.get_players_with_status(room_id)
+            await manager.broadcast(room_id, {
+                "type":   "round_start",
+                "round":  round_info["round"],
+                "drawer": round_info["drawer"],
+                "players": players
+            })
+            await asyncio.sleep(0.5)
+            words      = manager.get_random_words(3)
+            new_drawer = round_info["drawer"]
+            drawer_ws  = None
+            for ws, player in manager.rooms[room_id]["players"].items():
+                if player["name"] == new_drawer:
+                    drawer_ws = ws
+                    break
+            if drawer_ws:
+                await drawer_ws.send_json({
+                    "type":    "word_choices",
+                    "words":   words,
+                    "drawer":  new_drawer,
+                    "seconds": WORD_CHOICE_SECONDS
+                })
+                start_word_choice_timer(room_id, words)
+
+async def turn_timeout(room_id: str):
+    """Auto-end the turn after TURN_SECONDS if the frontend never sends round_end."""
+    await asyncio.sleep(TURN_SECONDS)
+    room = manager.rooms.get(room_id)
+    if not room or room.get("turn_ended", False):
+        turn_timer_tasks.pop(room_id, None)
+        return
+    room["turn_ended"] = True
+    print(f"⏱️  Server-side turn timeout for room {room_id}")
+    await end_turn(room_id, reason="time_up")
+    turn_timer_tasks.pop(room_id, None)
+
+def start_turn_timer(room_id: str):
+    """Cancel any existing turn timer and start a fresh TURN_SECONDS countdown."""
+    cancel_turn_timer(room_id)
+    turn_timer_tasks[room_id] = asyncio.create_task(turn_timeout(room_id))
+
+def cancel_turn_timer(room_id: str):
+    if room_id in turn_timer_tasks:
+        turn_timer_tasks[room_id].cancel()
+        turn_timer_tasks.pop(room_id, None)
 
 # CORS — allow frontend origin (set FRONTEND_URL env var in production)
 _raw_origins = os.getenv("FRONTEND_URL", "http://localhost:3000")
@@ -273,12 +376,13 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                 word_room["word_chosen_at"] = time.time()
                 
                 # Broadcast that word was chosen (hide the word from guessers)
-                word_hint = "_" * len(word)
+                word_hint = ''.join(' ' if c == ' ' else '_' for c in word)
                 await manager.broadcast(room_id, {
                     "type": "word_chosen",
                     "word_hint": word_hint,
                     "word_length": len(word)
                 })
+                start_turn_timer(room_id)
 
             # Drawing events - broadcast to everyone EXCEPT the sender (no echo)
             elif message_type in ["start", "draw", "stop", "clear", "undo", "redo", "fill"]:
@@ -296,20 +400,25 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                 is_correct = False
                 
                 # Only check guesses for non-drawer players
-                if username != drawer and current_word and message.lower().strip() == current_word:
+                if username != drawer and current_word and is_close_enough(message, current_word):
                     is_correct = True
+                    # Capture rank BEFORE adding (0 = first guesser)
+                    guess_rank = len(room.get("correct_guessers", []))
                     manager.add_correct_guesser(room_id, username)
                     
-                    # Time-based points: 100 at full time, min 10
-                    elapsed = time.time() - room.get("word_chosen_at", time.time())
-                    time_left = max(0.0, 80.0 - elapsed)
-                    guesser_points = max(10, round(100 * time_left / 80))
+                    # 1st guesser always gets 100 pts; rest are time-based (min 10)
+                    if guess_rank == 0:
+                        guesser_points = 100
+                    else:
+                        elapsed = time.time() - room.get("word_chosen_at", time.time())
+                        time_left = max(0.0, 80.0 - elapsed)
+                        guesser_points = max(10, round(100 * time_left / 80))
                     for ws, player in room["players"].items():
                         if player["name"] == username:
                             player["score"] = player.get("score", 0) + guesser_points
                             break
                     
-                    print(f"✅ {username} guessed correctly: '{message}' (+{guesser_points} pts, {time_left:.1f}s left)")
+                    print(f"✅ {username} guessed correctly! rank={guess_rank+1}, +{guesser_points} pts")
                     
                     # If all players guessed — end this turn early (server-side)
                     if manager.check_all_guessed(room_id):
@@ -317,9 +426,8 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                         # Guard against double-processing
                         if not room.get("turn_ended", False):
                             room["turn_ended"] = True
-                            correct_word = room.get("current_word", "")
                             print(f"🎉 All guessed! Ending turn early in room {room_id}")
-                            
+
                             # Award drawer 100 pts for everyone guessing
                             drawer_name = room.get("drawer", "")
                             drawer_bonus = 100
@@ -328,52 +436,8 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                                     player["score"] = player.get("score", 0) + drawer_bonus
                                     print(f"🎨 Drawer {drawer_name} earns +{drawer_bonus} pts (everyone guessed!)")
                                     break
-                            
-                            # Tell frontend: turn is over (stops their timer)
-                            await manager.broadcast(room_id, {
-                                "type": "turn_end",
-                                "reason": "all_guessed",
-                                "correct_word": correct_word,
-                                "drawer_bonus": drawer_bonus,
-                                "drawer": drawer_name,
-                                "players": manager.get_players_with_status(room_id)
-                            })
-                            
-                            await asyncio.sleep(3)
-                            
-                            if manager.is_game_complete(room_id):
-                                final_scores = manager.get_final_scores(room_id)
-                                await manager.broadcast(room_id, {
-                                    "type": "game_complete",
-                                    "final_scores": final_scores,
-                                    "winner": final_scores[0]["name"] if final_scores else None
-                                })
-                            else:
-                                round_info = manager.start_new_round(room_id)
-                                if round_info:
-                                    players = manager.get_players_with_status(room_id)
-                                    await manager.broadcast(room_id, {
-                                        "type": "round_start",
-                                        "round": round_info["round"],
-                                        "drawer": round_info["drawer"],
-                                        "players": players
-                                    })
-                                    await asyncio.sleep(0.5)
-                                    words = manager.get_random_words(3)
-                                    drawer_name = round_info["drawer"]
-                                    drawer_ws = None
-                                    for ws, player in manager.rooms[room_id]["players"].items():
-                                        if player["name"] == drawer_name:
-                                            drawer_ws = ws
-                                            break
-                                    if drawer_ws:
-                                        await drawer_ws.send_json({
-                                            "type": "word_choices",
-                                            "words": words,
-                                            "drawer": drawer_name,
-                                            "seconds": WORD_CHOICE_SECONDS
-                                        })
-                                        start_word_choice_timer(room_id, words)
+
+                            await end_turn(room_id, reason="all_guessed", drawer_bonus=drawer_bonus)
                 
                 # Broadcast chat message (hide correct guesses from chat)
                 if not is_correct:
@@ -393,73 +457,16 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                         "players": manager.get_players_with_status(room_id)
                     })
             
-            # Turn end triggered by frontend timer
+            # Turn end triggered by frontend timer (fallback — server timer is primary)
             elif message_type == "round_end":
                 room = manager.rooms.get(room_id, {})
-                # Skip if turn already ended server-side (all_guessed)
+                # Skip if turn already ended server-side (time_up or all_guessed)
                 if room.get("turn_ended", False):
                     continue
                 room["turn_ended"] = True
                 reason = data.get("reason", "time_up")
-                correct_word = room.get("current_word", "")
-                
-                print(f"🏁 Turn ended (timer) in room {room_id}. Reason: {reason}")
-                
-                # Broadcast turn end with correct word
-                await manager.broadcast(room_id, {
-                    "type": "turn_end",
-                    "reason": reason,
-                    "correct_word": correct_word
-                })
-                
-                # Wait a bit before starting next round or ending game
-                await asyncio.sleep(3)
-                
-                # Check if game is complete
-                if manager.is_game_complete(room_id):
-                    print(f"🎉 Game complete in room {room_id}!")
-                    final_scores = manager.get_final_scores(room_id)
-                    await manager.broadcast(room_id, {
-                        "type": "game_complete",
-                        "final_scores": final_scores,
-                        "winner": final_scores[0]["name"] if final_scores else None
-                    })
-                else:
-                    # Start next round
-                    round_info = manager.start_new_round(room_id)
-                    if round_info:
-                        # Broadcast new round start
-                        players = manager.get_players_with_status(room_id)
-                        await manager.broadcast(room_id, {
-                            "type": "round_start",
-                            "round": round_info["round"],
-                            "drawer": round_info["drawer"],
-                            "players": players
-                        })
-                        
-                        # Send word choices to the new drawer
-                        await asyncio.sleep(0.5)
-                        words = manager.get_random_words(3)
-                        drawer_name = round_info["drawer"]
-                        
-                        # Find the drawer's websocket
-                        drawer_ws = None
-                        for ws, player in room["players"].items():
-                            if player["name"] == drawer_name:
-                                drawer_ws = ws
-                                break
-                        
-                        if drawer_ws:
-                            print(f"📤 Sending word_choices to new drawer: {drawer_name}")
-                            await drawer_ws.send_json({
-                                "type": "word_choices",
-                                "words": words,
-                                "drawer": drawer_name,
-                                "seconds": WORD_CHOICE_SECONDS
-                            })
-                            start_word_choice_timer(room_id, words)
-                        else:
-                            print(f"⚠️  Could not find WebSocket for drawer: {drawer_name}")
+                print(f"🏁 Turn ended (frontend timer) in room {room_id}. Reason: {reason}")
+                await end_turn(room_id, reason=reason)
 
             # Game start
             elif message_type == "game_start":
@@ -474,6 +481,10 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
     except WebSocketDisconnect:
         print(f"🔌 WebSocket disconnected from room: {room_id}")
         manager.leave_room(room_id, websocket)
+        # Clean up timers if room is now empty
+        if not manager.rooms.get(room_id, {}).get("players"):
+            cancel_turn_timer(room_id)
+            cancel_word_choice_timer(room_id)
         
         # Notify others that player left + new admin if applicable
         if current_username:

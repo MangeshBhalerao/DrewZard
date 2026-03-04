@@ -61,7 +61,9 @@ export default function Game() {
 
   const roundStartedAtRef = useRef<number>(0);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  const canvasWrapperRef = useRef<HTMLDivElement>(null);
+  const chatScrollRef  = useRef<HTMLDivElement>(null);
 
   // Wall-clock timer — immune to mobile background throttling
   const startRoundTimer = (durationSeconds: number = 80) => {
@@ -113,9 +115,10 @@ export default function Game() {
     return () => document.removeEventListener('pointerdown', close);
   }, [showColorPicker, showBrushPicker]);
 
-  // Auto-scroll chat to latest message
+  // Scroll only the chat box — not the whole page
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const el = chatScrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [guesses]);
 
   // WebSocket connection
@@ -164,6 +167,11 @@ export default function Game() {
             score: p.score || 0,
             ready: p.ready
           })));
+          // Always dismiss any stale word-selection modal from the previous round
+          setShowWordSelection(false);
+          if (wordChoiceTimerRef.current) { clearInterval(wordChoiceTimerRef.current); wordChoiceTimerRef.current = null; }
+          setWordHint('');
+          setCurrentWord('');
           startRoundTimer(80);
           // Keep previous chat — just add a divider
           setGuesses(prev => [...prev, {
@@ -216,10 +224,10 @@ export default function Game() {
           }
           setGuesses(prev => [...prev, {
             id: Date.now(),
-            player: data.username,
+            player: 'System',
             message: data.points_earned
-              ? `${data.message} (+${data.points_earned} pts!)`
-              : data.message,
+              ? `${data.username} guessed correctly! (+${data.points_earned} pts!)`
+              : `${data.username} guessed correctly!`,
             isCorrect: true
           }]);
           break;
@@ -240,7 +248,9 @@ export default function Game() {
             const msgs = [...prev, {
               id: Date.now(),
               player: 'System',
-              message: `Turn ended! The word was: ${data.correct_word}`,
+              message: data.correct_word
+                ? `Turn ended! The word was: ${data.correct_word}`
+                : `Turn skipped!`,
               isCorrect: false
             }];
             // Show drawer bonus notification
@@ -433,7 +443,7 @@ export default function Game() {
               </p>
               <p 
                 className="text-2xl"
-                style={{ fontFamily: "'Bubblegum Sans', cursive" }}
+                style={{ fontFamily: "'Bubblegum Sans', cursive", letterSpacing: '0.15em', whiteSpace: 'pre' }}
               >
                 {username === drawer ? currentWord : wordHint}
               </p>
@@ -441,7 +451,7 @@ export default function Game() {
             <div className="md:hidden">
               <p 
                 className="text-lg"
-                style={{ fontFamily: "'Bubblegum Sans', cursive" }}
+                style={{ fontFamily: "'Bubblegum Sans', cursive", letterSpacing: '0.15em', whiteSpace: 'pre' }}
               >
                 {username === drawer ? currentWord : wordHint}
               </p>
@@ -620,7 +630,7 @@ export default function Game() {
               )}
 
               {/* Canvas - sticky on mobile so it stays visible when scrolling to chat */}
-              <div className="w-full lg:flex-1 lg:min-h-0 sticky top-1 lg:static" style={{ aspectRatio: '4 / 3', zIndex: 5 }}>
+              <div ref={canvasWrapperRef} className="w-full lg:flex-1 lg:min-h-0 sticky top-1 lg:static" style={{ aspectRatio: '4 / 3', zIndex: 5 }}>
                 {joined && (
                   <DrawingCanvas
                     ref={canvasRef}
@@ -723,7 +733,7 @@ export default function Game() {
                   Guesses 💭
                 </h3>
                 
-                <div className="overflow-y-auto space-y-2 mb-3" style={{ maxHeight: '240px', minHeight: '120px' }}>
+                <div ref={chatScrollRef} className="overflow-y-auto space-y-2 mb-3" style={{ maxHeight: '240px', minHeight: '120px' }}>
                   {guesses.map((guess) => (
                     <div
                       key={guess.id}
@@ -738,7 +748,7 @@ export default function Game() {
                     </div>
                   ))}
                   {/* Sentinel div — scroll target for new messages */}
-                  <div ref={chatEndRef} />
+
                 </div>
 
                 <div className="flex gap-2">
@@ -754,6 +764,10 @@ export default function Game() {
                     }}
                     onFocus={(e) => {
                       e.target.style.boxShadow = '0 0 0 2px rgba(94, 179, 246, 0.5)';
+                      // On mobile, scroll canvas into view so the player can see the drawing while typing
+                      if (window.innerWidth < 1024) {
+                        canvasWrapperRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }
                     }}
                     onBlur={(e) => {
                       e.target.style.boxShadow = 'none';
