@@ -80,9 +80,6 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                 
                 # Check player count
                 player_count = len(manager.rooms[room_id].get("players", {}))
-                print(f"🎮 Admin {username} starting game in room {room_id}...")
-                print(f"   Player count in room: {player_count}")
-                print(f"   Players: {[p['name'] for p in manager.rooms[room_id]['players'].values()]}")
                 
                 if player_count < 2:
                     await websocket.send_json({
@@ -105,62 +102,50 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                     "type": "game_start",
                     "room_code": room_id
                 })
+
+            # Players ready on game page - start first round
+            elif message_type == "game_ready":
+                username = data.get("username", "")
                 
-                # Small delay to ensure game page loads
-                await asyncio.sleep(1)
+                # Check if round hasn't started yet
+                room = manager.rooms.get(room_id, {})
+                current_turn = room.get("turn", 0)
+                total_players = len(room.get("player_order", []))
+                connected_players = len(room.get("players", {}))
                 
-                # Start first round
-                print(f"🎲 Starting first round in room {room_id}...")
-                round_info = manager.start_new_round(room_id)
-                if round_info:
-                    # Get random words for drawer to choose
-                    word_choices = manager.get_random_words(3)
-                    print(f"🎲 Generated word choices: {word_choices}")
-                    
-                    # Send round info to all players
-                    players = manager.get_players_with_status(room_id)
-                    print(f"📤 Broadcasting round_start to all players...")
-                    print(f"   Round: {round_info['round']}, Drawer: {round_info['drawer']}")
-                    await manager.broadcast(room_id, {
-                        "type": "round_start",
-                        "round": round_info["round"],
-                        "drawer": round_info["drawer"],
-                        "total_rounds": round_info["total_rounds"],
-                        "players": players
-                    })
-                    print(f"✅ round_start broadcast complete")
-                    
-                    # Small delay to ensure drawer state updates on frontend
-                    await asyncio.sleep(0.5)
-                    
-                    # Send word choices only to drawer
-                    drawer_found = False
-                    drawer_ws = None
-                    print(f"🔍 Looking for drawer '{round_info['drawer']}' in room players...")
-                    print(f"   Current players in room: {[(p['name'], id(ws)) for ws, p in manager.rooms[room_id]['players'].items()]}")
-                    
-                    for ws, player in manager.rooms[room_id]["players"].items():
-                        print(f"   Checking player: {player['name']} (WS ID: {id(ws)})")
-                        if player["name"] == round_info["drawer"]:
-                            drawer_ws = ws
-                            drawer_found = True
-                            print(f"✅✅✅ FOUND DRAWER: {player['name']} at WebSocket {id(ws)}")
-                            break
-                    
-                    if drawer_found and drawer_ws:
-                        try:
-                            print(f"📤 Sending word_choices to drawer {round_info['drawer']}...")
+                # Start round only if: turn not started AND all players connected
+                if current_turn == 0 and connected_players >= total_players and total_players >= 2:
+                    round_info = manager.start_new_round(room_id)
+                    if round_info:
+                        # Get random words for drawer to choose
+                        word_choices = manager.get_random_words(3)
+                        
+                        # Send round info to all players
+                        players = manager.get_players_with_status(room_id)
+                        await manager.broadcast(room_id, {
+                            "type": "round_start",
+                            "round": round_info["round"],
+                            "drawer": round_info["drawer"],
+                            "total_rounds": round_info["total_rounds"],
+                            "players": players
+                        })
+                        
+                        # Small delay to ensure drawer state updates on frontend
+                        await asyncio.sleep(0.5)
+                        
+                        # Send word choices only to drawer
+                        drawer_ws = None
+                        for ws, player in manager.rooms[room_id]["players"].items():
+                            if player["name"] == round_info["drawer"]:
+                                drawer_ws = ws
+                                break
+                        
+                        if drawer_ws:
                             await drawer_ws.send_json({
                                 "type": "word_choices",
                                 "words": word_choices,
                                 "drawer": round_info["drawer"]
                             })
-                            print(f"✅ word_choices sent successfully to {round_info['drawer']}!")
-                        except Exception as e:
-                            print(f"❌ Error sending word choices: {e}")
-                    else:
-                        print(f"❌❌❌ DRAWER NOT FOUND: {round_info['drawer']}")
-                        print(f"   Available players: {[p['name'] for p in manager.rooms[room_id]['players'].values()]}")
 
             # Kick player (admin only)
             elif message_type == "kick_player":
@@ -204,21 +189,165 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                     "word_length": len(word)
                 })
 
-            # Drawing events - broadcast to everyone in the room
-            elif message_type in ["start", "draw", "stop", "clear"]:
-                await manager.broadcast(room_id, data)
+            # Drawing events - broadcast to everyone EXCEPT the sender (no echo)
+            elif message_type in ["start", "draw", "stop", "clear", "undo", "redo"]:
+                await manager.broadcast(room_id, data, exclude_sender=websocket)
 
             # Chat messages
             elif message_type == "chat":
                 username = data.get("username", "Anonymous")
                 message = data.get("message", "")
                 
+                # Check if the message is a correct guess
+                room = manager.rooms.get(room_id, {})
+                current_word = room.get("current_word", "").lower()
+                drawer = room.get("drawer", "")
+                is_correct = False
+                
+                # Only check guesses for non-drawer players
+                if username != drawer and current_word and message.lower().strip() == current_word:
+                    is_correct = True
+                    manager.add_correct_guesser(room_id, username)
+                    
+                    # Update player score
+                    for ws, player in room["players"].items():
+                        if player["name"] == username:
+                            player["score"] = player.get("score", 0) + 100
+                            break
+                    
+                    print(f"✅ {username} guessed correctly: '{message}'")
+                    
+                    # If all players guessed — end this turn early (server-side)
+                    if manager.check_all_guessed(room_id):
+                        room = manager.rooms.get(room_id, {})
+                        # Guard against double-processing
+                        if not room.get("turn_ended", False):
+                            room["turn_ended"] = True
+                            correct_word = room.get("current_word", "")
+                            print(f"🎉 All guessed! Ending turn early in room {room_id}")
+                            
+                            # Tell frontend: turn is over (stops their timer)
+                            await manager.broadcast(room_id, {
+                                "type": "turn_end",
+                                "reason": "all_guessed",
+                                "correct_word": correct_word
+                            })
+                            
+                            await asyncio.sleep(3)
+                            
+                            if manager.is_game_complete(room_id):
+                                final_scores = manager.get_final_scores(room_id)
+                                await manager.broadcast(room_id, {
+                                    "type": "game_complete",
+                                    "final_scores": final_scores,
+                                    "winner": final_scores[0]["name"] if final_scores else None
+                                })
+                            else:
+                                round_info = manager.start_new_round(room_id)
+                                if round_info:
+                                    players = manager.get_players_with_status(room_id)
+                                    await manager.broadcast(room_id, {
+                                        "type": "round_start",
+                                        "round": round_info["round"],
+                                        "drawer": round_info["drawer"],
+                                        "players": players
+                                    })
+                                    await asyncio.sleep(0.5)
+                                    words = manager.get_random_words(3)
+                                    drawer_name = round_info["drawer"]
+                                    drawer_ws = None
+                                    for ws, player in manager.rooms[room_id]["players"].items():
+                                        if player["name"] == drawer_name:
+                                            drawer_ws = ws
+                                            break
+                                    if drawer_ws:
+                                        await drawer_ws.send_json({
+                                            "type": "word_choices",
+                                            "words": words,
+                                            "drawer": drawer_name
+                                        })
+                
+                # Broadcast chat message (hide correct guesses from chat)
+                if not is_correct:
+                    await manager.broadcast(room_id, {
+                        "type": "chat",
+                        "username": username,
+                        "message": message,
+                        "isSystem": False
+                    })
+                else:
+                    # Broadcast correct guess notification
+                    await manager.broadcast(room_id, {
+                        "type": "correct_guess",
+                        "username": username,
+                        "message": message
+                    })
+            
+            # Turn end triggered by frontend timer
+            elif message_type == "round_end":
+                room = manager.rooms.get(room_id, {})
+                # Skip if turn already ended server-side (all_guessed)
+                if room.get("turn_ended", False):
+                    continue
+                room["turn_ended"] = True
+                reason = data.get("reason", "time_up")
+                correct_word = room.get("current_word", "")
+                
+                print(f"🏁 Turn ended (timer) in room {room_id}. Reason: {reason}")
+                
+                # Broadcast turn end with correct word
                 await manager.broadcast(room_id, {
-                    "type": "chat",
-                    "username": username,
-                    "message": message,
-                    "isSystem": False
+                    "type": "turn_end",
+                    "reason": reason,
+                    "correct_word": correct_word
                 })
+                
+                # Wait a bit before starting next round or ending game
+                await asyncio.sleep(3)
+                
+                # Check if game is complete
+                if manager.is_game_complete(room_id):
+                    print(f"🎉 Game complete in room {room_id}!")
+                    final_scores = manager.get_final_scores(room_id)
+                    await manager.broadcast(room_id, {
+                        "type": "game_complete",
+                        "final_scores": final_scores,
+                        "winner": final_scores[0]["name"] if final_scores else None
+                    })
+                else:
+                    # Start next round
+                    round_info = manager.start_new_round(room_id)
+                    if round_info:
+                        # Broadcast new round start
+                        players = manager.get_players_with_status(room_id)
+                        await manager.broadcast(room_id, {
+                            "type": "round_start",
+                            "round": round_info["round"],
+                            "drawer": round_info["drawer"],
+                            "players": players
+                        })
+                        
+                        # Send word choices to the new drawer
+                        await asyncio.sleep(0.5)
+                        words = manager.get_random_words(3)
+                        drawer_name = round_info["drawer"]
+                        
+                        # Find the drawer's websocket
+                        drawer_ws = None
+                        for ws, player in room["players"].items():
+                            if player["name"] == drawer_name:
+                                drawer_ws = ws
+                                break
+                        
+                        if drawer_ws:
+                            print(f"📤 Sending word_choices to new drawer: {drawer_name}")
+                            await drawer_ws.send_json({
+                                "type": "word_choices",
+                                "words": words,
+                                "drawer": drawer_name
+                            })
+                        else:
+                            print(f"⚠️  Could not find WebSocket for drawer: {drawer_name}")
 
             # Game start
             elif message_type == "game_start":

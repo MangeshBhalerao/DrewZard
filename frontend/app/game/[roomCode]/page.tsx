@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { NotebookBackground } from '@/components/NotebookBackground';
 import { SketchyButton } from '@/components/SketchyButton';
 import { DrawingCanvas, DrawingCanvasRef } from '@/components/DrawingCanvas';
-import { ArrowLeft, Eraser, Trash2, Send } from 'lucide-react';
+import { ArrowLeft, Eraser, Trash2, Send, Undo, Redo } from 'lucide-react';
 
 const COLORS = [
   { name: 'Black', value: '#2a2a2a' },
@@ -50,21 +50,31 @@ export default function Game() {
   const [wordChoices, setWordChoices] = useState<string[]>([]);
   const [showWordSelection, setShowWordSelection] = useState(false);
   const [showDrawerAnnouncement, setShowDrawerAnnouncement] = useState(false);
-
-  // Debug: Log when word selection modal should show
-  useEffect(() => {
-    console.log('📊 Word selection state changed:', showWordSelection);
-    console.log('   Word choices:', wordChoices);
-  }, [showWordSelection, wordChoices]);
+  const [showGameComplete, setShowGameComplete] = useState(false);
+  const [finalScores, setFinalScores] = useState<Player[]>([]);
+  const [winner, setWinner] = useState('');
+  const [showColorPicker, setShowColorPicker] = useState(false);
 
   // Timer
   useEffect(() => {
-    if (!joined) return;
+    if (!joined || !round) return;
     const timer = setInterval(() => {
-      setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
+      setTimeLeft((prev) => {
+        if (prev === 1) {
+          // Timer reached 0, send round_end message
+          if (socketRef.current) {
+            socketRef.current.send(JSON.stringify({
+              type: 'round_end',
+              reason: 'time_up'
+            }));
+          }
+          return 0;
+        }
+        return prev > 0 ? prev - 1 : 0;
+      });
     }, 1000);
     return () => clearInterval(timer);
-  }, [joined]);
+  }, [joined, round]);
 
   // Get username from session storage or prompt
   useEffect(() => {
@@ -82,6 +92,14 @@ export default function Game() {
     }
   };
 
+  // Close color picker when clicking outside
+  useEffect(() => {
+    if (!showColorPicker) return;
+    const close = () => setShowColorPicker(false);
+    document.addEventListener('pointerdown', close);
+    return () => document.removeEventListener('pointerdown', close);
+  }, [showColorPicker]);
+
   // WebSocket connection
   useEffect(() => {
     if (!joined || hasConnectedRef.current) return;
@@ -98,15 +116,20 @@ export default function Game() {
         type: 'join',
         username: username,
       }));
+      
+      // Notify backend that this player is ready on game page
+      console.log('📤 Sending game_ready message');
+      socket.send(JSON.stringify({
+        type: 'game_ready',
+        username: username,
+      }));
     };
 
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      console.log('📩 Game Page Message received:', data.type, data);
 
       switch (data.type) {
         case 'players_update':
-          console.log('   Players:', data.players);
           setPlayers(data.players.map((p: any) => ({
             name: p.name,
             score: p.score || 0,
@@ -115,11 +138,8 @@ export default function Game() {
           break;
 
         case 'round_start':
-          console.log('🎮 ROUND START - Drawer:', data.drawer, 'My username:', username);
-          console.log('   Full round_start data:', JSON.stringify(data));
           setRound(data.round);
           setDrawer(data.drawer);
-          console.log('✅ Drawer state set to:', data.drawer);
           setPlayers(data.players.map((p: any) => ({
             name: p.name,
             score: p.score || 0,
@@ -134,25 +154,39 @@ export default function Game() {
           break;
 
         case 'word_choices':
-          console.log('🎯🎯🎯 WORD_CHOICES MESSAGE RECEIVED!');
-          console.log('   Words:', data.words);
-          console.log('   Drawer from message:', data.drawer);
-          console.log('   My username:', username);
-          console.log('   Current drawer state:', drawer);
-          console.log('   Am I the drawer?', username === data.drawer);
-          
           if (data.words && data.words.length > 0) {
             setWordChoices(data.words);
             setShowWordSelection(true);
-            console.log('✅✅✅ Word selection modal ACTIVATED');
-          } else {
-            console.log('⚠️  No words in word_choices message');
           }
           break;
 
         case 'word_chosen':
           setWordHint(data.word_hint);
           setShowWordSelection(false);
+          break;
+
+        case 'correct_guess':
+          setGuesses(prev => [...prev, {
+            id: Date.now(),
+            player: data.username,
+            message: data.message,
+            isCorrect: true
+          }]);
+          break;
+        
+        case 'turn_end':
+          // Stop the timer and show the correct word
+          setTimeLeft(0);
+          setGuesses(prev => [...prev, {
+            id: Date.now(),
+            player: 'System',
+            message: `Turn ended! The word was: ${data.correct_word}`,
+            isCorrect: false
+          }]);
+          // Clear canvas
+          if (canvasRef.current) {
+            canvasRef.current.clearCanvas();
+          }
           break;
 
         case 'chat':
@@ -163,11 +197,21 @@ export default function Game() {
             isCorrect: false
           }]);
           break;
+
+        case 'game_complete':
+          setFinalScores(data.final_scores.map((p: any) => ({
+            name: p.name,
+            score: p.score,
+            ready: false
+          })));
+          setWinner(data.winner);
+          setShowGameComplete(true);
+          break;
       }
     };
 
     socket.onclose = () => {
-      console.log('❌ Game WebSocket disconnected');
+      // Connection closed
     };
 
     return () => {
@@ -209,7 +253,7 @@ export default function Game() {
   };
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
+    <div className="min-h-screen relative">
       <NotebookBackground />
 
       {/* Name popup */}
@@ -255,9 +299,10 @@ export default function Game() {
         </div>
       )}
       
-      <div className="relative z-10 h-screen flex flex-col">
+      {/* Outer wrapper - natural scroll on all screen sizes */}
+      <div className="relative z-10 flex flex-col min-h-screen">
         {/* Header */}
-        <div className="p-4 border-b-4 border-solid" style={{ backgroundColor: 'rgba(255, 255, 255, 0.8)', backdropFilter: 'blur(10px)', borderColor: '#2a2a2a' }}>
+        <div className="p-3 border-b-4 border-solid sticky top-0 z-30" style={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)', borderColor: '#2a2a2a' }}>
           <div className="container mx-auto flex items-center justify-between gap-2">
             <button
               onClick={() => router.push(`/lobby/${roomCode}`)}
@@ -333,14 +378,14 @@ export default function Game() {
         </div>
 
         {/* Main Game Area */}
-        <div className="flex-1 p-4 overflow-hidden">
-          <div className="h-full grid lg:grid-cols-[1fr_300px] gap-4">
+        <div className="flex-1 p-3">
+          <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[1fr_300px]">
             {/* Canvas and Tools */}
-            <div className="flex flex-col gap-4 min-h-0">
+            <div className="flex flex-col gap-3">
               {/* Drawing Tools - Only visible to drawer */}
               {username === drawer && (
               <div 
-                className="p-4"
+                className="p-2 sm:p-3"
                 style={{
                   backgroundColor: '#ffffff',
                   border: '4px solid #2a2a2a',
@@ -349,83 +394,104 @@ export default function Game() {
                   boxShadow: '3px 3px 0px 0px rgba(42, 42, 42, 0.3)',
                 }}
               >
-                <div className="flex flex-wrap items-center gap-4">
+                {/* ── Desktop toolbar (hidden on mobile) ── */}
+                <div className="hidden sm:flex flex-wrap items-center gap-3">
                   {/* Colors */}
-                  <div className="flex gap-2 flex-wrap">
-                    {COLORS.map((color) => (
+                  <div className="flex gap-1.5 flex-wrap">
+                    {COLORS.map((c) => (
                       <button
-                        key={color.value}
-                        className={`w-10 h-10 rounded-full transition-transform hover:scale-110 ${
-                          currentColor === color.value ? 'scale-110' : ''
-                        }`}
+                        key={c.value}
+                        className={`w-8 h-8 rounded-full transition-transform hover:scale-110 ${currentColor === c.value ? 'scale-110' : ''}`}
                         style={{ 
-                          backgroundColor: color.value,
+                          backgroundColor: c.value,
                           border: '3px solid #2a2a2a',
-                          boxShadow: currentColor === color.value 
-                            ? '0 0 0 4px rgba(94, 179, 246, 0.5)' 
-                            : '2px 2px 0px rgba(42, 42, 42, 0.3)',
+                          boxShadow: currentColor === c.value ? '0 0 0 3px rgba(94,179,246,0.6)' : '2px 2px 0 rgba(42,42,42,0.3)',
                         }}
-                        onClick={() => setCurrentColor(color.value)}
-                        title={color.name}
+                        onClick={() => setCurrentColor(c.value)}
+                        title={c.name}
                       />
                     ))}
                   </div>
-
-                  <div className="h-8 w-px" style={{ backgroundColor: 'rgba(42, 42, 42, 0.2)' }} />
-
+                  <div className="h-8 w-px" style={{ backgroundColor: 'rgba(42,42,42,0.2)' }} />
                   {/* Brush Sizes */}
-                  <div className="flex gap-2">
+                  <div className="flex gap-1.5">
                     {BRUSH_SIZES.map((size) => (
                       <button
                         key={size}
-                        className="w-10 h-10 flex items-center justify-center rounded-lg transition-all hover:scale-110"
+                        className="w-8 h-8 flex items-center justify-center rounded-lg transition-all hover:scale-110"
                         style={{
                           border: '2px solid #2a2a2a',
                           backgroundColor: brushSize === size ? '#5eb3f6' : '#ffffff',
-                          boxShadow: brushSize === size ? '0 0 0 2px rgba(94, 179, 246, 0.5)' : 'none',
                         }}
                         onClick={() => setBrushSize(size)}
                         title={`${size}px`}
                       >
-                        <div
-                          className="rounded-full"
-                          style={{
-                            width: `${Math.min(size, 12)}px`,
-                            height: `${Math.min(size, 12)}px`,
-                            backgroundColor: '#2a2a2a',
-                          }}
-                        />
+                        <div className="rounded-full" style={{ width: `${Math.min(size, 12)}px`, height: `${Math.min(size, 12)}px`, backgroundColor: '#2a2a2a' }} />
                       </button>
                     ))}
                   </div>
+                  <div className="h-8 w-px" style={{ backgroundColor: 'rgba(42,42,42,0.2)' }} />
+                  {/* Action buttons */}
+                  <button className="p-1.5 rounded-lg hover:scale-110 transition-transform" style={{ backgroundColor: '#ffb3ba', border: '2px solid #2a2a2a' }} onClick={() => setCurrentColor('#ffffff')} title="Eraser"><Eraser className="w-5 h-5" /></button>
+                  <button className="p-1.5 rounded-lg hover:scale-110 transition-transform" style={{ backgroundColor: '#ff6b6b', color: '#fff', border: '2px solid #2a2a2a' }} onClick={clearCanvas} title="Clear"><Trash2 className="w-5 h-5" /></button>
+                  <button className="p-1.5 rounded-lg hover:scale-110 transition-transform" style={{ backgroundColor: '#bae1ba', border: '2px solid #2a2a2a' }} onClick={() => canvasRef.current?.undo()} title="Undo"><Undo className="w-5 h-5" /></button>
+                  <button className="p-1.5 rounded-lg hover:scale-110 transition-transform" style={{ backgroundColor: '#bae1ba', border: '2px solid #2a2a2a' }} onClick={() => canvasRef.current?.redo()} title="Redo"><Redo className="w-5 h-5" /></button>
+                </div>
 
-                  <div className="h-8 w-px" style={{ backgroundColor: 'rgba(42, 42, 42, 0.2)' }} />
-
-                  {/* Tools */}
+                {/* ── Mobile toolbar (one compact row) ── */}
+                <div className="flex sm:hidden items-center gap-2 relative">
+                  {/* Color picker trigger */}
                   <button
-                    className="p-2 rounded-lg hover:scale-110 transition-transform"
-                    style={{
-                      backgroundColor: '#ffb3ba',
-                      border: '2px solid #2a2a2a',
-                    }}
-                    onClick={() => setCurrentColor('#ffffff')}
-                    title="Eraser"
+                    className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg"
+                    style={{ border: '2px solid #2a2a2a', backgroundColor: '#ffffff' }}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={() => setShowColorPicker(p => !p)}
                   >
-                    <Eraser className="w-6 h-6" />
+                    <div className="w-5 h-5 rounded-full" style={{ backgroundColor: currentColor, border: '2px solid #2a2a2a' }} />
+                    <span className="text-xs font-bold">Color</span>
+                    <span className="text-xs">{showColorPicker ? '▲' : '▼'}</span>
                   </button>
 
-                  <button
-                    className="p-2 rounded-lg hover:scale-110 transition-transform"
-                    style={{
-                      backgroundColor: '#ff6b6b',
-                      color: '#ffffff',
-                      border: '2px solid #2a2a2a',
-                    }}
-                    onClick={clearCanvas}
-                    title="Clear Canvas"
-                  >
-                    <Trash2 className="w-6 h-6" />
-                  </button>
+                  {/* Color popup */}
+                  {showColorPicker && (
+                    <div
+                      className="absolute top-full left-0 mt-2 p-2 z-50 grid grid-cols-4 gap-1.5"
+                      style={{ backgroundColor: '#fff', border: '3px solid #2a2a2a', borderRadius: '10px', boxShadow: '4px 4px 0 rgba(42,42,42,0.3)' }}
+                      onPointerDown={(e) => e.stopPropagation()}
+                    >
+                      {COLORS.map((c) => (
+                        <button
+                          key={c.value}
+                          className="w-8 h-8 rounded-full"
+                          style={{ backgroundColor: c.value, border: currentColor === c.value ? '3px solid #5eb3f6' : '2px solid #2a2a2a' }}
+                          onClick={() => { setCurrentColor(c.value); setShowColorPicker(false); }}
+                          title={c.name}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="w-px h-6" style={{ backgroundColor: 'rgba(42,42,42,0.2)' }} />
+
+                  {/* Compact brush sizes */}
+                  {BRUSH_SIZES.map((size) => (
+                    <button
+                      key={size}
+                      className="w-7 h-7 flex items-center justify-center rounded-md"
+                      style={{ border: '2px solid #2a2a2a', backgroundColor: brushSize === size ? '#5eb3f6' : '#ffffff' }}
+                      onClick={() => setBrushSize(size)}
+                    >
+                      <div className="rounded-full" style={{ width: `${Math.min(size, 10)}px`, height: `${Math.min(size, 10)}px`, backgroundColor: '#2a2a2a' }} />
+                    </button>
+                  ))}
+
+                  <div className="w-px h-6" style={{ backgroundColor: 'rgba(42,42,42,0.2)' }} />
+
+                  {/* Action icons */}
+                  <button className="p-1.5 rounded-md" style={{ backgroundColor: '#ffb3ba', border: '2px solid #2a2a2a' }} onClick={() => setCurrentColor('#ffffff')} title="Eraser"><Eraser className="w-4 h-4" /></button>
+                  <button className="p-1.5 rounded-md" style={{ backgroundColor: '#ff6b6b', color: '#fff', border: '2px solid #2a2a2a' }} onClick={clearCanvas} title="Clear"><Trash2 className="w-4 h-4" /></button>
+                  <button className="p-1.5 rounded-md" style={{ backgroundColor: '#bae1ba', border: '2px solid #2a2a2a' }} onClick={() => canvasRef.current?.undo()} title="Undo"><Undo className="w-4 h-4" /></button>
+                  <button className="p-1.5 rounded-md" style={{ backgroundColor: '#bae1ba', border: '2px solid #2a2a2a' }} onClick={() => canvasRef.current?.redo()} title="Redo"><Redo className="w-4 h-4" /></button>
                 </div>
               </div>
               )}
@@ -452,8 +518,8 @@ export default function Game() {
                 </div>
               )}
 
-              {/* Canvas */}
-              <div className="flex-1 min-h-0">
+              {/* Canvas - fixed 4:3 aspect ratio so drawings look the same on all screens */}
+              <div className="w-full lg:flex-1 lg:min-h-0" style={{ aspectRatio: '4 / 3' }}>
                 {joined && (
                   <DrawingCanvas
                     ref={canvasRef}
@@ -472,6 +538,7 @@ export default function Game() {
                       backgroundColor: '#ffffff',
                       transform: 'rotate(0.2deg)',
                       boxShadow: '4px 4px 0px 0px rgba(42, 42, 42, 0.3)',
+                      display: 'block',
                     }}
                   />
                 )}
@@ -479,10 +546,10 @@ export default function Game() {
             </div>
 
             {/* Sidebar */}
-            <div className="flex flex-col gap-4 min-h-0">
+            <div className="flex flex-col gap-3">
               {/* Scoreboard */}
               <div 
-                className="p-4"
+                className="p-3"
                 style={{
                   backgroundColor: '#ffffff',
                   border: '4px solid #2a2a2a',
@@ -492,47 +559,41 @@ export default function Game() {
                 }}
               >
                 <h3 
-                  className="text-2xl mb-3 text-center"
+                  className="text-xl mb-2 text-center"
                   style={{ fontFamily: "'Bubblegum Sans', cursive" }}
                 >
                   🏆 Scoreboard
                 </h3>
                 
-                <div className="space-y-2">
+                {/* Mobile: horizontal chips. Desktop: vertical list */}
+                <div className="flex flex-wrap gap-2 lg:flex-col lg:space-y-2 lg:flex-nowrap">
                   {players.map((player, index) => (
                     <div
                       key={player.name}
-                      className="flex items-center gap-2 p-2 rounded-lg"
+                      className="flex items-center gap-1.5 p-1.5 rounded-lg"
                       style={{
                         backgroundColor: player.name === drawer ? '#ffd966' : '#f0f0e0',
                         border: '2px solid rgba(42, 42, 42, 0.2)',
+                        minWidth: 0,
                       }}
                     >
-                      <span className="text-xl">
-                        {player.name === drawer ? '✏️' : '🎨'}
-                      </span>
-                      <div className="flex-1">
+                      <span className="text-base">{player.name === drawer ? '✏️' : '🎨'}</span>
+                      <div className="min-w-0">
                         <p 
-                          className="font-semibold"
+                          className="font-semibold text-sm truncate"
                           style={{ fontFamily: "'Bubblegum Sans', cursive" }}
                         >
-                          {player.name} {player.name === username && '(You)'}
+                          {player.name}{player.name === username && ' (You)'}
                           {player.name === drawer && (
                             <span 
-                              className="ml-2 text-xs px-2 py-1 rounded"
-                              style={{ 
-                                backgroundColor: '#ff6b6b',
-                                color: '#ffffff',
-                                border: '1px solid #2a2a2a'
-                              }}
+                              className="ml-1 text-xs px-1.5 py-0.5 rounded"
+                              style={{ backgroundColor: '#ff6b6b', color: '#fff', border: '1px solid #2a2a2a' }}
                             >
                               Drawing!
                             </span>
                           )}
                         </p>
-                        <p className="text-sm text-gray-600">
-                          {player.score} points
-                        </p>
+                        <p className="text-xs text-gray-600">{player.score} pts</p>
                       </div>
                     </div>
                   ))}
@@ -541,8 +602,8 @@ export default function Game() {
 
               {/* Guesses/Chat */}
               <div 
-                className="flex-1 p-4 flex flex-col min-h-0"
-                style={{
+                className="flex flex-col p-3"
+                style={{ minHeight: '320px',
                   backgroundColor: '#ffffff',
                   border: '4px solid #2a2a2a',
                   borderRadius: '12px',
@@ -560,7 +621,7 @@ export default function Game() {
                   Guesses 💭
                 </h3>
                 
-                <div className="flex-1 overflow-y-auto space-y-2 mb-3 min-h-0">
+                <div className="overflow-y-auto space-y-2 mb-3" style={{ maxHeight: '240px', minHeight: '120px' }}>
                   {guesses.map((guess) => (
                     <div
                       key={guess.id}
@@ -674,17 +735,90 @@ export default function Game() {
         </div>
       )}
 
-      {/* Debug Panel - Remove this after testing */}
-      <div className="fixed bottom-4 right-4 bg-black/80 text-white p-4 rounded text-xs max-w-xs z-50 font-mono">
-        <div className="font-bold mb-2">🐛 DEBUG INFO</div>
-        <div>showWordSelection: <span className="text-yellow-300">{showWordSelection ? 'TRUE' : 'FALSE'}</span></div>
-        <div>wordChoices: <span className="text-blue-300">{JSON.stringify(wordChoices)}</span></div>
-        <div>drawer: <span className="text-green-300">{drawer || '(not set)'}</span></div>
-        <div>username: <span className="text-purple-300">{username}</span></div>
-        <div>isDrawer: <span className={username === drawer ? 'text-red-400 font-bold' : 'text-gray-400'}>{username === drawer ? 'YES ✏️' : 'NO'}</span></div>
-        <div>round: <span className="text-orange-300">{round}</span></div>
-        <div className="mt-2 text-xs text-gray-400">Check browser console for more logs</div>
-      </div>
+      {/* Game Complete Modal */}
+      {showGameComplete && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
+          <div 
+            className="bg-white p-8 flex flex-col gap-6"
+            style={{
+              border: '4px solid #2a2a2a',
+              borderRadius: '16px',
+              transform: 'rotate(-1deg)',
+              boxShadow: '5px 5px 0px 0px rgba(42, 42, 42, 0.3)',
+              maxWidth: '600px',
+              width: '90%',
+            }}
+          >
+            <h2 
+              className="text-4xl text-center"
+              style={{ fontFamily: "'Bubblegum Sans', cursive" }}
+            >
+              🎉 Game Complete! 🎉
+            </h2>
+            <div 
+              className="p-4"
+              style={{
+                backgroundColor: '#ffd966',
+                border: '3px solid #2a2a2a',
+                borderRadius: '12px',
+              }}
+            >
+              <h3 
+                className="text-2xl text-center mb-2"
+                style={{ fontFamily: "'Bubblegum Sans', cursive" }}
+              >
+                👑 Winner: {winner}
+              </h3>
+            </div>
+            <div>
+              <h4 
+                className="text-xl mb-3 text-center"
+                style={{ fontFamily: "'Bubblegum Sans', cursive" }}
+              >
+                Final Scores
+              </h4>
+              <div className="space-y-2">
+                {finalScores.map((player, index) => (
+                  <div 
+                    key={player.name}
+                    className="flex justify-between items-center p-3"
+                    style={{
+                      backgroundColor: index === 0 ? '#bae1ba' : '#ffffff',
+                      border: '2px solid #2a2a2a',
+                      borderRadius: '8px',
+                    }}
+                  >
+                    <span className="flex items-center gap-2">
+                      {index === 0 && '🥇'}
+                      {index === 1 && '🥈'}
+                      {index === 2 && '🥉'}
+                      <span 
+                        className="text-lg"
+                        style={{ fontFamily: "'Bubblegum Sans', cursive" }}
+                      >
+                        {player.name}
+                      </span>
+                    </span>
+                    <span 
+                      className="text-xl"
+                      style={{ fontFamily: "'Bubblegum Sans', cursive" }}
+                    >
+                      {player.score} pts
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <SketchyButton
+              variant="primary"
+              onClick={() => router.push('/')}
+              className="text-xl py-3"
+            >
+              Return to Home
+            </SketchyButton>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

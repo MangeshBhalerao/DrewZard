@@ -27,6 +27,7 @@ export default function Lobby() {
   const router = useRouter();
   const socketRef = useRef<WebSocket | null>(null);
   const hasConnectedRef = useRef(false); // Prevent multiple connections
+  const isGameStartingRef = useRef(false); // Track if game is starting
   
   const [players, setPlayers] = useState<Player[]>([]);
   const [isReady, setIsReady] = useState(false);
@@ -64,7 +65,6 @@ export default function Lobby() {
     hasConnectedRef.current = true; // Mark as connected
 
     socket.onopen = () => {
-      console.log('✅ Lobby WebSocket connected to room:', roomCode);
       socket.send(JSON.stringify({
         type: 'join',
         username: username,
@@ -104,6 +104,7 @@ export default function Lobby() {
 
       // Handle game starting countdown
       if (data.type === 'game_starting') {
+        isGameStartingRef.current = true; // Mark that game is starting
         const countdownValue = data.countdown || 3;
         setCountdown(countdownValue);
         
@@ -136,8 +137,8 @@ export default function Lobby() {
       // Handle game start
       if (data.type === 'game_start') {
         setCountdown(null);
+        isGameStartingRef.current = false; // Reset flag
         // Close WebSocket before navigating to prevent duplicate connections
-        console.log('🔌 Closing lobby WebSocket before game start');
         socket.close();
         hasConnectedRef.current = false;
         setTimeout(() => {
@@ -147,17 +148,18 @@ export default function Lobby() {
     };
 
     socket.onerror = (error) => {
-      console.error('❌ Lobby WebSocket error:', error);
+      // WebSocket error
     };
 
     socket.onclose = () => {
-      console.log('🔌 Lobby WebSocket disconnected from room:', roomCode);
       hasConnectedRef.current = false;
     };
 
     return () => {
-      console.log('🧹 Cleaning up Lobby WebSocket');
-      socket.close();
+      // Don't close socket if game is starting (waiting for game_start message)
+      if (!isGameStartingRef.current) {
+        socket.close();
+      }
       hasConnectedRef.current = false;
     };
   }, [joined]); // Only reconnect if joined state changes
@@ -203,7 +205,6 @@ export default function Lobby() {
         type: 'ready',
         ready: newReadyState,
       }));
-      console.log(`🎯 Ready state changed: ${newReadyState}`);
     }
   };
 
@@ -213,7 +214,6 @@ export default function Lobby() {
         type: 'start_game',
         username: username,
       }));
-      console.log('🎮 Admin starting game...');
     }
   };
 
@@ -224,7 +224,6 @@ export default function Lobby() {
         admin_username: username,
         player_name: playerName,
       }));
-      console.log(`🚫 Kicking player: ${playerName}`);
     }
   };
 

@@ -31,11 +31,12 @@ class RoomManager:
                 "players": {},
                 "drawer": None,
                 "current_word": None,
-                "round": 0,
+                "turn": 0,  # Track individual turns (increments each draw)
                 "settings": {},
                 "game_started": False,
                 "player_order": [],  # Track turn order
-                "admin": username  # First player is admin
+                "admin": username,  # First player is admin
+                "correct_guessers": []  # Track who guessed correctly this round
             }
         
         # Check if player name already exists in this room
@@ -183,12 +184,12 @@ class RoomManager:
         
     
     def start_new_round(self, room_id: str) -> Dict:
-        """Start a new round and select next drawer"""
+        """Start a new turn and select next drawer"""
         if room_id not in self.rooms:
             return {}
         
         room = self.rooms[room_id]
-        room["round"] = room.get("round", 0) + 1
+        room["turn"] = room.get("turn", 0) + 1
         
         # Get next drawer from player order
         player_order = room["player_order"]
@@ -196,23 +197,32 @@ class RoomManager:
             print(f"⚠️  No players in player_order for room {room_id}")
             return {}
         
-        current_round = room["round"]
-        drawer_index = (current_round - 1) % len(player_order)
+        current_turn = room["turn"]
+        player_count = len(player_order)
+        
+        # Calculate current round (1-3) based on how many complete cycles
+        current_round = ((current_turn - 1) // player_count) + 1
+        
+        # Calculate drawer index
+        drawer_index = (current_turn - 1) % player_count
         drawer_name = player_order[drawer_index]
         
         room["drawer"] = drawer_name
         room["current_word"] = None  # Word not chosen yet
+        room["correct_guessers"] = []  # Reset correct guessers for new turn
+        room["turn_ended"] = False  # Reset turn-ended flag
         room["game_started"] = True
         
-        print(f"🎯 Round {current_round} started in room {room_id}. Drawer: {drawer_name}")
+        print(f"🎯 Round {current_round}, Turn {current_turn}/{player_count * 3} in room {room_id}. Drawer: {drawer_name}")
         print(f"   Player order: {player_order}")
         print(f"   Drawer index: {drawer_index}")
         print(f"   Connected players: {[p['name'] for p in room['players'].values()]}")
         
         return {
             "round": current_round,
+            "turn": current_turn,
             "drawer": drawer_name,
-            "total_rounds": len(player_order) * 3  # 3 rounds per player
+            "total_rounds": 3  # 3 rounds total
         }
     
     def set_word(self, room_id: str, word: str):
@@ -220,6 +230,68 @@ class RoomManager:
         if room_id in self.rooms:
             self.rooms[room_id]["current_word"] = word
             print(f"📝 Word set in room {room_id}: {word}")
+    
+    def add_correct_guesser(self, room_id: str, username: str) -> bool:
+        """Add a player to the correct guessers list"""
+        if room_id not in self.rooms:
+            return False
+        
+        correct_guessers = self.rooms[room_id].get("correct_guessers", [])
+        if username not in correct_guessers:
+            correct_guessers.append(username)
+            self.rooms[room_id]["correct_guessers"] = correct_guessers
+            print(f"✅ {username} guessed correctly! Total correct: {len(correct_guessers)}")
+            return True
+        return False
+    
+    def check_all_guessed(self, room_id: str) -> bool:
+        """Check if all non-drawer players have guessed correctly"""
+        if room_id not in self.rooms:
+            return False
+        
+        room = self.rooms[room_id]
+        drawer = room.get("drawer")
+        correct_guessers = room.get("correct_guessers", [])
+        
+        # Get all non-drawer player names
+        all_players = [p["name"] for p in room["players"].values()]
+        non_drawer_players = [p for p in all_players if p != drawer]
+        
+        print(f"🎯 Checking if all guessed: {len(correct_guessers)}/{len(non_drawer_players)}")
+        print(f"   Non-drawer players: {non_drawer_players}")
+        print(f"   Correct guessers: {correct_guessers}")
+        
+        # All non-drawer players must have guessed correctly
+        return len(non_drawer_players) > 0 and len(correct_guessers) >= len(non_drawer_players)
+    
+    def is_game_complete(self, room_id: str) -> bool:
+        """Check if all rounds have been completed"""
+        if room_id not in self.rooms:
+            return False
+        
+        room = self.rooms[room_id]
+        current_turn = room.get("turn", 0)
+        player_order = room.get("player_order", [])
+        total_turns = len(player_order) * 3  # 3 rounds * number of players
+        
+        return current_turn >= total_turns
+    
+    def get_final_scores(self, room_id: str) -> list:
+        """Get final scores sorted by score"""
+        if room_id not in self.rooms:
+            return []
+        
+        room = self.rooms[room_id]
+        players = [
+            {
+                "name": player["name"],
+                "score": player.get("score", 0)
+            }
+            for player in room["players"].values()
+        ]
+        
+        # Sort by score descending
+        return sorted(players, key=lambda x: x["score"], reverse=True)
         players = self.rooms[room_id]["players"]
         if len(players) < 2:  # Need at least 2 players
             return False
