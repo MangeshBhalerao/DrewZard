@@ -12,6 +12,7 @@ interface Player {
   name: string;
   isReady: boolean;
   avatar: string;
+  isAdmin?: boolean;
 }
 
 interface ChatMessage {
@@ -439,27 +440,37 @@ export default function Lobby() {
               </div>
 
               <div className="flex gap-4">
-                {!isUserAdmin() && (
-                  <SketchyButton
-                    variant={isReady ? 'success' : 'primary'}
-                    size="md"
-                    className="flex-1"
-                    onClick={handleToggleReady}
-                  >
-                    {isReady ? '✓ Ready!' : 'Ready Up'}
-                  </SketchyButton>
-                )}
+                {/* Everyone sees Ready Up */}
+                <SketchyButton
+                  variant={isReady ? 'success' : 'primary'}
+                  size="md"
+                  className="flex-1"
+                  onClick={handleToggleReady}
+                >
+                  {isReady ? '✓ Ready!' : 'Ready Up'}
+                </SketchyButton>
+                {/* Admin also gets a force-start button */}
                 {isUserAdmin() && (
                   <SketchyButton
                     variant="accent"
                     size="md"
-                    className="flex-1"
                     onClick={handleStartGame}
                   >
-                    🎮 Start Game
+                    🎮 Start
                   </SketchyButton>
                 )}
               </div>
+              {/* Hint: auto-start fires when all are ready */}
+              {players.length >= 2 && players.every(p => p.isReady) && (
+                <p className="text-center text-sm mt-2" style={{ color: '#16a34a', fontWeight: 600 }}>
+                  🚀 All ready — starting automatically!
+                </p>
+              )}
+              {players.length < 2 && (
+                <p className="text-center text-sm mt-2 text-gray-500">
+                  Need at least 2 players to start
+                </p>
+              )}
             </div>
           </div>
 

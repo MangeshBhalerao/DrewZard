@@ -132,6 +132,25 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                     "players": players
                 })
 
+                # Auto-start if ALL players (≥2) are ready — works even if admin left
+                room = manager.rooms.get(room_id, {})
+                all_players = list(room.get("players", {}).values())
+                if (
+                    len(all_players) >= 2
+                    and all(p.get("ready", False) for p in all_players)
+                    and not room.get("game_started", False)
+                ):
+                    print(f"🚀 All players ready in room {room_id} — auto-starting!")
+                    await manager.broadcast(room_id, {
+                        "type": "game_starting",
+                        "countdown": 3
+                    })
+                    await asyncio.sleep(3)
+                    await manager.broadcast(room_id, {
+                        "type": "game_start",
+                        "room_code": room_id
+                    })
+
             # Admin starts the game
             elif message_type == "start_game":
                 username = data.get("username", "")
@@ -456,7 +475,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
         print(f"🔌 WebSocket disconnected from room: {room_id}")
         manager.leave_room(room_id, websocket)
         
-        # Notify others that player left
+        # Notify others that player left + new admin if applicable
         if current_username:
             players = manager.get_players_with_status(room_id)
             await manager.broadcast(room_id, {
@@ -473,3 +492,13 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
     except Exception as e:
         print(f"❌ Error in WebSocket: {e}")
         manager.leave_room(room_id, websocket)
+        # Also broadcast on exception so new admin is announced
+        if current_username:
+            try:
+                players = manager.get_players_with_status(room_id)
+                await manager.broadcast(room_id, {
+                    "type": "players_update",
+                    "players": players
+                })
+            except Exception:
+                pass
