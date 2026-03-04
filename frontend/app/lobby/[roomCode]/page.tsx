@@ -136,10 +136,9 @@ export default function Lobby() {
       }
 
       // Handle game start
-      if (data.type === 'game_start') {
+      if (data.type === 'game_start' || data.type === 'game_in_progress') {
         setCountdown(null);
-        isGameStartingRef.current = false; // Reset flag
-        // Close WebSocket before navigating to prevent duplicate connections
+        isGameStartingRef.current = false;
         socket.close();
         hasConnectedRef.current = false;
         setTimeout(() => {
@@ -163,6 +162,7 @@ export default function Lobby() {
       }
       hasConnectedRef.current = false;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [joined]); // Only reconnect if joined state changes
 
   const handleJoin = () => {

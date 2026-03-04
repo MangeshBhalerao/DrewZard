@@ -816,7 +816,7 @@ export default function Game() {
               >
                 {wordChoiceTimeLeft}s
               </div>
-              <p className="text-sm text-gray-500">Auto-picks if you don't choose</p>
+              <p className="text-sm text-gray-500">Auto-picks if you don&apos;t choose</p>
             </div>
             <p className="text-center text-sm text-gray-600">
               Pick one of these words to draw for the other players
