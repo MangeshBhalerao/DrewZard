@@ -1,0 +1,26 @@
+export function NotebookBackground() {
+  return (
+    <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+      {/* Notebook lines */}
+      <div 
+        className="absolute inset-0"
+        style={{
+          backgroundImage: `repeating-linear-gradient(
+            transparent,
+            transparent 31px,
+            rgba(94, 179, 246, 0.15) 31px,
+            rgba(94, 179, 246, 0.15) 32px
+          )`,
+          backgroundSize: '100% 32px',
+        }}
+      />
+      {/* Red margin line */}
+      <div 
+        className="absolute left-16 top-0 bottom-0 w-0.5"
+        style={{
+          background: 'rgba(255, 107, 107, 0.3)',
+        }}
+      />
+    </div>
+  );
+}

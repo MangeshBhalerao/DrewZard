@@ -1,0 +1,124 @@
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Bubblegum+Sans&family=Patrick+Hand&display=swap');
+
+/* Tailwind Base, Components, and Utilities */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global Styles */
+@layer base {
+  * {
+    @apply outline-none;
+  }
+
+  html {
+    font-size: 16px;
+  }
+
+  body {
+    @apply bg-background text-foreground font-hand;
+    font-family: 'Patrick Hand', cursive;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+    font-weight: 500;
+    line-height: 1.5;
+  }
+
+  h2 {
+    font-size: 1.25rem;
+    font-weight: 500;
+    line-height: 1.5;
+  }
+
+  h3 {
+    font-size: 1.125rem;
+    font-weight: 500;
+    line-height: 1.5;
+  }
+
+  h4 {
+    font-size: 1rem;
+    font-weight: 500;
+    line-height: 1.5;
+  }
+
+  label {
+    font-size: 1rem;
+    font-weight: 500;
+    line-height: 1.5;
+  }
+
+  button {
+    font-size: 1rem;
+    font-weight: 500;
+    line-height: 1.5;
+  }
+
+  input {
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.5;
+  }
+}
+
+/* Custom Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f0f0e0;
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #5eb3f6;
+  border-radius: 5px;
+  border: 2px solid #2a2a2a;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4a9fd6;
+}
+
+/* Selection Styling */
+::selection {
+  background: #ffd966;
+  color: #2a2a2a;
+}
+
+/* Prevent text selection on buttons and interactive elements */
+button,
+.no-select {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Utility Classes */
+@layer utilities {
+  .sketchy-shadow {
+    box-shadow: 3px 3px 0px 0px rgba(42, 42, 42, 0.3);
+  }
+
+  .sketchy-shadow-lg {
+    box-shadow: 5px 5px 0px 0px rgba(42, 42, 42, 0.3);
+  }
+
+  .sketchy-shadow-sm {
+    box-shadow: 2px 2px 0px 0px rgba(42, 42, 42, 0.3);
+  }
+
+  .sketchy-border {
+    border: 3px solid #2a2a2a;
+    border-radius: 12px;
+  }
+
+  .sketchy-border-sm {
+    border: 2px solid #2a2a2a;
+    border-radius: 8px;
+  }
+}
