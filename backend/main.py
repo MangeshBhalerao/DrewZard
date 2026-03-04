@@ -420,6 +420,15 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                     
                     print(f"✅ {username} guessed correctly! rank={guess_rank+1}, +{guesser_points} pts")
                     
+                    # Broadcast correct guess immediately (sound fires without delay)
+                    await manager.broadcast(room_id, {
+                        "type": "correct_guess",
+                        "username": username,
+                        "message": message,
+                        "points_earned": guesser_points,
+                        "players": manager.get_players_with_status(room_id)
+                    })
+
                     # If all players guessed — end this turn early (server-side)
                     if manager.check_all_guessed(room_id):
                         room = manager.rooms.get(room_id, {})
@@ -439,7 +448,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
 
                             await end_turn(room_id, reason="all_guessed", drawer_bonus=drawer_bonus)
                 
-                # Broadcast chat message (hide correct guesses from chat)
+                # Broadcast plain chat (hide the actual guessed word from others)
                 if not is_correct:
                     await manager.broadcast(room_id, {
                         "type": "chat",
@@ -447,15 +456,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                         "message": message,
                         "isSystem": False
                     })
-                else:
-                    # Broadcast correct guess notification with live scores
-                    await manager.broadcast(room_id, {
-                        "type": "correct_guess",
-                        "username": username,
-                        "message": message,
-                        "points_earned": guesser_points,
-                        "players": manager.get_players_with_status(room_id)
-                    })
+                # correct_guess already broadcast above — nothing more to do
             
             # Turn end triggered by frontend timer (fallback — server timer is primary)
             elif message_type == "round_end":

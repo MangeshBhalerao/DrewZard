@@ -65,6 +65,22 @@ export default function Game() {
   const canvasWrapperRef = useRef<HTMLDivElement>(null);
   const chatScrollRef  = useRef<HTMLDivElement>(null);
 
+  const popAudioRef = useRef<HTMLAudioElement | null>(null);
+  useEffect(() => {
+    const audio = new Audio('/pop.mp3');
+    audio.preload = 'auto';
+    popAudioRef.current = audio;
+  }, []);
+
+  const playPopSound = () => {
+    try {
+      const audio = popAudioRef.current;
+      if (!audio) return;
+      audio.currentTime = 0;
+      audio.play().catch(() => {});
+    } catch (_) {}
+  };
+
   // Wall-clock timer — immune to mobile background throttling
   const startRoundTimer = (durationSeconds: number = 80) => {
     if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
@@ -214,6 +230,7 @@ export default function Game() {
           break;
 
         case 'correct_guess':
+          playPopSound();
           // Live-update scoreboard
           if (data.players) {
             setPlayers(data.players.map((p: any) => ({
