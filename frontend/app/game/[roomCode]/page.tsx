@@ -57,9 +57,11 @@ export default function Game() {
   const [winner, setWinner] = useState('');
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showBrushPicker, setShowBrushPicker] = useState(false);
+  const [fillMode, setFillMode] = useState(false);
 
   const roundStartedAtRef = useRef<number>(0);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Wall-clock timer — immune to mobile background throttling
   const startRoundTimer = (durationSeconds: number = 80) => {
@@ -110,6 +112,11 @@ export default function Game() {
     document.addEventListener('pointerdown', close);
     return () => document.removeEventListener('pointerdown', close);
   }, [showColorPicker, showBrushPicker]);
+
+  // Auto-scroll chat to latest message
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [guesses]);
 
   // WebSocket connection
   useEffect(() => {
@@ -499,7 +506,10 @@ export default function Game() {
                   </div>
                   <div className="h-8 w-px" style={{ backgroundColor: 'rgba(42,42,42,0.2)' }} />
                   {/* Action buttons */}
-                  <button className="p-1.5 rounded-lg hover:scale-110 transition-transform" style={{ backgroundColor: '#ffb3ba', border: '2px solid #2a2a2a' }} onClick={() => setCurrentColor('#ffffff')} title="Eraser"><Eraser className="w-5 h-5" /></button>
+                  <button className="p-1.5 rounded-lg hover:scale-110 transition-transform" style={{ backgroundColor: '#ffb3ba', border: '2px solid #2a2a2a' }} onClick={() => { setCurrentColor('#ffffff'); setFillMode(false); }} title="Eraser"><Eraser className="w-5 h-5" /></button>
+                  <button className="p-1.5 rounded-lg hover:scale-110 transition-transform" style={{ backgroundColor: fillMode ? '#5eb3f6' : '#e8d5ff', border: fillMode ? '3px solid #2a2a2a' : '2px solid #2a2a2a' }} onClick={() => setFillMode(f => !f)} title="Fill">
+                    <span className="text-base leading-none">🪣</span>
+                  </button>
                   <button className="p-1.5 rounded-lg hover:scale-110 transition-transform" style={{ backgroundColor: '#ff6b6b', color: '#fff', border: '2px solid #2a2a2a' }} onClick={clearCanvas} title="Clear"><Trash2 className="w-5 h-5" /></button>
                   <button className="p-1.5 rounded-lg hover:scale-110 transition-transform" style={{ backgroundColor: '#bae1ba', border: '2px solid #2a2a2a' }} onClick={() => canvasRef.current?.undo()} title="Undo"><Undo className="w-5 h-5" /></button>
                   <button className="p-1.5 rounded-lg hover:scale-110 transition-transform" style={{ backgroundColor: '#bae1ba', border: '2px solid #2a2a2a' }} onClick={() => canvasRef.current?.redo()} title="Redo"><Redo className="w-5 h-5" /></button>
@@ -531,7 +541,7 @@ export default function Game() {
                           key={c.value}
                           className="w-8 h-8 rounded-full"
                           style={{ backgroundColor: c.value, border: currentColor === c.value ? '3px solid #5eb3f6' : '2px solid #2a2a2a' }}
-                          onClick={() => { setCurrentColor(c.value); setShowColorPicker(false); }}
+                          onPointerDown={(e) => { e.stopPropagation(); setCurrentColor(c.value); setShowColorPicker(false); }}
                           title={c.name}
                         />
                       ))}
@@ -564,7 +574,7 @@ export default function Game() {
                           key={size}
                           className="flex items-center gap-2 px-3 py-1.5 rounded-lg"
                           style={{ border: '2px solid #2a2a2a', backgroundColor: brushSize === size ? '#5eb3f6' : '#ffffff', minWidth: '80px' }}
-                          onClick={() => { setBrushSize(size); setShowBrushPicker(false); }}
+                          onPointerDown={(e) => { e.stopPropagation(); setBrushSize(size); setShowBrushPicker(false); }}
                         >
                           <div className="rounded-full flex-shrink-0" style={{ width: `${Math.min(size, 14)}px`, height: `${Math.min(size, 14)}px`, backgroundColor: currentColor === '#ffffff' ? '#2a2a2a' : currentColor }} />
                           <span className="text-xs font-bold">{size}px</span>
@@ -576,7 +586,10 @@ export default function Game() {
                   <div className="w-px h-6" style={{ backgroundColor: 'rgba(42,42,42,0.2)' }} />
 
                   {/* Action icons */}
-                  <button className="p-1.5 rounded-md" style={{ backgroundColor: '#ffb3ba', border: '2px solid #2a2a2a' }} onClick={() => setCurrentColor('#ffffff')} title="Eraser"><Eraser className="w-4 h-4" /></button>
+                  <button className="p-1.5 rounded-md" style={{ backgroundColor: '#ffb3ba', border: '2px solid #2a2a2a' }} onClick={() => { setCurrentColor('#ffffff'); setFillMode(false); }} title="Eraser"><Eraser className="w-4 h-4" /></button>
+                  <button className="p-1.5 rounded-md" style={{ backgroundColor: fillMode ? '#5eb3f6' : '#e8d5ff', border: fillMode ? '3px solid #2a2a2a' : '2px solid #2a2a2a' }} onClick={() => setFillMode(f => !f)} title="Fill">
+                    <span className="text-sm leading-none">🪣</span>
+                  </button>
                   <button className="p-1.5 rounded-md" style={{ backgroundColor: '#ff6b6b', color: '#fff', border: '2px solid #2a2a2a' }} onClick={clearCanvas} title="Clear"><Trash2 className="w-4 h-4" /></button>
                   <button className="p-1.5 rounded-md" style={{ backgroundColor: '#bae1ba', border: '2px solid #2a2a2a' }} onClick={() => canvasRef.current?.undo()} title="Undo"><Undo className="w-4 h-4" /></button>
                   <button className="p-1.5 rounded-md" style={{ backgroundColor: '#bae1ba', border: '2px solid #2a2a2a' }} onClick={() => canvasRef.current?.redo()} title="Redo"><Redo className="w-4 h-4" /></button>
@@ -606,8 +619,8 @@ export default function Game() {
                 </div>
               )}
 
-              {/* Canvas - fixed 4:3 aspect ratio so drawings look the same on all screens */}
-              <div className="w-full lg:flex-1 lg:min-h-0" style={{ aspectRatio: '4 / 3' }}>
+              {/* Canvas - sticky on mobile so it stays visible when scrolling to chat */}
+              <div className="w-full lg:flex-1 lg:min-h-0 sticky top-1 lg:static" style={{ aspectRatio: '4 / 3', zIndex: 5 }}>
                 {joined && (
                   <DrawingCanvas
                     ref={canvasRef}
@@ -619,6 +632,7 @@ export default function Game() {
                     onDrawingChange={setIsDrawing}
                     isDrawer={username === drawer}
                     socket={socketRef.current}
+                    fillMode={fillMode}
                     className="w-full h-full"
                     style={{ 
                       border: '4px solid #2a2a2a',
@@ -723,6 +737,8 @@ export default function Game() {
                       {guess.isCorrect && ' ✓'}
                     </div>
                   ))}
+                  {/* Sentinel div — scroll target for new messages */}
+                  <div ref={chatEndRef} />
                 </div>
 
                 <div className="flex gap-2">

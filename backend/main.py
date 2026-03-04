@@ -262,7 +262,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                 })
 
             # Drawing events - broadcast to everyone EXCEPT the sender (no echo)
-            elif message_type in ["start", "draw", "stop", "clear", "undo", "redo"]:
+            elif message_type in ["start", "draw", "stop", "clear", "undo", "redo", "fill"]:
                 await manager.broadcast(room_id, data, exclude_sender=websocket)
 
             # Chat messages

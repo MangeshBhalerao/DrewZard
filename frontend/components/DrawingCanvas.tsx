@@ -13,6 +13,7 @@ interface DrawingCanvasProps {
   style?: React.CSSProperties;
   isDrawer?: boolean;  // Only drawer can draw
   socket?: WebSocket | null;  // Use shared WebSocket from parent
+  fillMode?: boolean;  // Fill bucket mode
 }
 
 export interface DrawingCanvasRef {
@@ -22,13 +23,17 @@ export interface DrawingCanvasRef {
 }
 
 export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
-  ({ roomCode, username, color, brushSize, isDrawing, onDrawingChange, className, style, isDrawer = true, socket: externalSocket }, ref) => {
+  ({ roomCode, username, color, brushSize, isDrawing, onDrawingChange, className, style, isDrawer = true, socket: externalSocket, fillMode = false }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const socketRef = useRef<WebSocket | null>(null);
     const isDrawingRef = useRef(false);
     const hasConnectedRef = useRef(false); // Prevent multiple connections
     const isDrawerRef = useRef(isDrawer);
     isDrawerRef.current = isDrawer; // always keep in sync with prop
+    const fillModeRef = useRef(fillMode);
+    fillModeRef.current = fillMode; // always keep in sync with prop
+    const colorRef = useRef(color);
+    colorRef.current = color; // always keep in sync with prop
     
     // Undo/Redo history
     const historyRef = useRef<ImageData[]>([]);
@@ -68,6 +73,64 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
       if (imageData) {
         ctx.putImageData(imageData, 0, 0);
       }
+    };
+
+    // Flood fill algorithm
+    const floodFill = (startNx: number, startNy: number, fillColor: string) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      // Convert normalized (0-1) coords to physical canvas pixels (accounts for DPR)
+      const physX = Math.round(startNx * canvas.width);
+      const physY = Math.round(startNy * canvas.height);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+
+      const idx = (physY * canvas.width + physX) * 4;
+      const targetR = data[idx], targetG = data[idx + 1], targetB = data[idx + 2], targetA = data[idx + 3];
+
+      // Parse fill color via a 1x1 temp canvas
+      const tmp = document.createElement('canvas');
+      tmp.width = tmp.height = 1;
+      const tmpCtx = tmp.getContext('2d')!;
+      tmpCtx.fillStyle = fillColor;
+      tmpCtx.fillRect(0, 0, 1, 1);
+      const fp = tmpCtx.getImageData(0, 0, 1, 1).data;
+      const fillR = fp[0], fillG = fp[1], fillB = fp[2];
+
+      // Already same color — nothing to do
+      if (targetR === fillR && targetG === fillG && targetB === fillB && targetA === 255) return;
+
+      const tolerance = 15; // handles anti-aliased edges
+      const w = canvas.width, h = canvas.height;
+      const visited = new Uint8Array(w * h);
+      const stack: number[] = [physY * w + physX];
+
+      while (stack.length > 0) {
+        const pos = stack.pop()!;
+        const x = pos % w;
+        const y = Math.floor(pos / w);
+        if (x < 0 || x >= w || y < 0 || y >= h || visited[pos]) continue;
+        const i = pos * 4;
+        if (
+          Math.abs(data[i]     - targetR) > tolerance ||
+          Math.abs(data[i + 1] - targetG) > tolerance ||
+          Math.abs(data[i + 2] - targetB) > tolerance ||
+          Math.abs(data[i + 3] - targetA) > tolerance
+        ) continue;
+        visited[pos] = 1;
+        data[i] = fillR; data[i + 1] = fillG; data[i + 2] = fillB; data[i + 3] = 255;
+        if (x + 1 < w)  stack.push(y * w + x + 1);
+        if (x - 1 >= 0) stack.push(y * w + x - 1);
+        if (y + 1 < h)  stack.push((y + 1) * w + x);
+        if (y - 1 >= 0) stack.push((y - 1) * w + x);
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+      saveToHistory();
     };
 
     // Use external socket if provided, otherwise create own
@@ -188,6 +251,13 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
           lastReceivedPosRef.current = null;
           // Save to history when receiving stop from other users
           saveToHistory();
+        }
+
+        if (data.type === 'fill') {
+          // Only non-drawers receive the fill broadcast (drawer already applied it locally)
+          if (!isDrawerRef.current) {
+            floodFill(data.nx ?? 0, data.ny ?? 0, data.color);
+          }
         }
 
         if (data.type === 'clear') {
@@ -316,6 +386,20 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
       const norm = getCoordinates(e);
       if (!norm) return;
 
+      // ── Fill mode: flood-fill on tap then return ──
+      if (fillModeRef.current) {
+        floodFill(norm.x, norm.y, colorRef.current);
+        if (socketRef.current?.readyState === WebSocket.OPEN) {
+          socketRef.current.send(JSON.stringify({
+            type: 'fill',
+            nx: norm.x,
+            ny: norm.y,
+            color: colorRef.current,
+          }));
+        }
+        return;
+      }
+
       const { x, y } = toDisplayCoords(norm.x, norm.y);
 
       isDrawingRef.current = true;
@@ -347,6 +431,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
     const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
       if (!isDrawer) return;
       if (!isDrawingRef.current) return;
+      if (fillModeRef.current) return; // no drag-drawing in fill mode
 
       if ('touches' in e) {
         e.preventDefault();
@@ -418,7 +503,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
         style={{
           ...style,
           touchAction: 'none',
-          cursor: isDrawer ? 'crosshair' : 'not-allowed',
+          cursor: isDrawer ? (fillMode ? 'cell' : 'crosshair') : 'not-allowed',
           opacity: isDrawer ? 1 : 0.6,
         }}
         onMouseDown={startDrawing}
