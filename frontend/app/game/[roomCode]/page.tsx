@@ -49,6 +49,8 @@ export default function Game() {
   const [round, setRound] = useState(0);
   const [wordChoices, setWordChoices] = useState<string[]>([]);
   const [showWordSelection, setShowWordSelection] = useState(false);
+  const [wordChoiceTimeLeft, setWordChoiceTimeLeft] = useState(15);
+  const wordChoiceTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [showDrawerAnnouncement, setShowDrawerAnnouncement] = useState(false);
   const [showGameComplete, setShowGameComplete] = useState(false);
   const [finalScores, setFinalScores] = useState<Player[]>([]);
@@ -56,26 +58,34 @@ export default function Game() {
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showBrushPicker, setShowBrushPicker] = useState(false);
 
-  // Timer
-  useEffect(() => {
-    if (!joined || !round) return;
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev === 1) {
-          // Timer reached 0, send round_end message
-          if (socketRef.current) {
-            socketRef.current.send(JSON.stringify({
-              type: 'round_end',
-              reason: 'time_up'
-            }));
-          }
-          return 0;
+  const roundStartedAtRef = useRef<number>(0);
+  const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Wall-clock timer — immune to mobile background throttling
+  const startRoundTimer = (durationSeconds: number = 80) => {
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    roundStartedAtRef.current = Date.now();
+    timerIntervalRef.current = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - roundStartedAtRef.current) / 1000);
+      const remaining = Math.max(0, durationSeconds - elapsed);
+      setTimeLeft(remaining);
+      if (remaining === 0) {
+        clearInterval(timerIntervalRef.current!);
+        timerIntervalRef.current = null;
+        if (socketRef.current) {
+          socketRef.current.send(JSON.stringify({
+            type: 'round_end',
+            reason: 'time_up'
+          }));
         }
-        return prev > 0 ? prev - 1 : 0;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [joined, round]);
+      }
+    }, 500); // Poll every 500ms so it stays accurate even if throttled
+  };
+
+  // Legacy timer effect replaced by startRoundTimer() called on round_start
+  useEffect(() => {
+    return () => { if (timerIntervalRef.current) clearInterval(timerIntervalRef.current); };
+  }, []);
 
   // Get username from session storage or prompt
   useEffect(() => {
@@ -147,7 +157,7 @@ export default function Game() {
             score: p.score || 0,
             ready: p.ready
           })));
-          setTimeLeft(80);
+          startRoundTimer(80);
           // Keep previous chat — just add a divider
           setGuesses(prev => [...prev, {
             id: Date.now(),
@@ -165,32 +175,78 @@ export default function Game() {
           if (data.words && data.words.length > 0) {
             setWordChoices(data.words);
             setShowWordSelection(true);
+            const secs = data.seconds || 15;
+            setWordChoiceTimeLeft(secs);
+            // Clear any previous timer
+            if (wordChoiceTimerRef.current) clearInterval(wordChoiceTimerRef.current);
+            wordChoiceTimerRef.current = setInterval(() => {
+              setWordChoiceTimeLeft(prev => {
+                if (prev <= 1) {
+                  clearInterval(wordChoiceTimerRef.current!);
+                  wordChoiceTimerRef.current = null;
+                  return 0;
+                }
+                return prev - 1;
+              });
+            }, 1000);
           }
           break;
 
         case 'word_chosen':
           setWordHint(data.word_hint);
           setShowWordSelection(false);
+          if (wordChoiceTimerRef.current) { clearInterval(wordChoiceTimerRef.current); wordChoiceTimerRef.current = null; }
           break;
 
         case 'correct_guess':
+          // Live-update scoreboard
+          if (data.players) {
+            setPlayers(data.players.map((p: any) => ({
+              name: p.name,
+              score: p.score || 0,
+              ready: p.ready
+            })));
+          }
           setGuesses(prev => [...prev, {
             id: Date.now(),
             player: data.username,
-            message: data.message,
+            message: data.points_earned
+              ? `${data.message} (+${data.points_earned} pts!)`
+              : data.message,
             isCorrect: true
           }]);
           break;
         
         case 'turn_end':
           // Stop the timer and show the correct word
+          if (timerIntervalRef.current) { clearInterval(timerIntervalRef.current); timerIntervalRef.current = null; }
           setTimeLeft(0);
-          setGuesses(prev => [...prev, {
-            id: Date.now(),
-            player: 'System',
-            message: `Turn ended! The word was: ${data.correct_word}`,
-            isCorrect: false
-          }]);
+          // Live-update scoreboard (includes drawer bonus if all_guessed)
+          if (data.players) {
+            setPlayers(data.players.map((p: any) => ({
+              name: p.name,
+              score: p.score || 0,
+              ready: p.ready
+            })));
+          }
+          setGuesses(prev => {
+            const msgs = [...prev, {
+              id: Date.now(),
+              player: 'System',
+              message: `Turn ended! The word was: ${data.correct_word}`,
+              isCorrect: false
+            }];
+            // Show drawer bonus notification
+            if (data.drawer_bonus && data.drawer) {
+              msgs.push({
+                id: Date.now() + 1,
+                player: 'System',
+                message: `🎨 ${data.drawer} earns +${data.drawer_bonus} pts — everyone guessed!`,
+                isCorrect: false
+              });
+            }
+            return msgs;
+          });
           // Clear canvas
           if (canvasRef.current) {
             canvasRef.current.clearCanvas();
@@ -230,6 +286,7 @@ export default function Game() {
   }, [joined, roomCode, username]);
 
   const handleWordSelect = (word: string) => {
+    if (wordChoiceTimerRef.current) { clearInterval(wordChoiceTimerRef.current); wordChoiceTimerRef.current = null; }
     console.log('🎯 Word selected:', word);
     if (socketRef.current) {
       console.log('📤 Sending word_selected to backend');
@@ -400,6 +457,8 @@ export default function Game() {
                   borderRadius: '12px',
                   transform: 'rotate(-0.3deg)',
                   boxShadow: '3px 3px 0px 0px rgba(42, 42, 42, 0.3)',
+                  position: 'relative',
+                  zIndex: 10,
                 }}
               >
                 {/* ── Desktop toolbar (hidden on mobile) ── */}
@@ -463,8 +522,8 @@ export default function Game() {
                   {/* Color popup — opens downward */}
                   {showColorPicker && (
                     <div
-                      className="absolute top-full left-0 mt-2 p-2 z-50 grid grid-cols-4 gap-1.5"
-                      style={{ backgroundColor: '#fff', border: '3px solid #2a2a2a', borderRadius: '10px', boxShadow: '4px 4px 0 rgba(42,42,42,0.3)' }}
+                      className="absolute top-full left-0 mt-2 p-2 grid grid-cols-4 gap-1.5"
+                      style={{ backgroundColor: '#fff', border: '3px solid #2a2a2a', borderRadius: '10px', boxShadow: '4px 4px 0 rgba(42,42,42,0.3)', zIndex: 9999 }}
                       onPointerDown={(e) => e.stopPropagation()}
                     >
                       {COLORS.map((c) => (
@@ -496,8 +555,8 @@ export default function Game() {
                   {/* Brush size popup — opens downward */}
                   {showBrushPicker && (
                     <div
-                      className="absolute top-full mt-2 p-2 z-50 flex flex-col gap-2"
-                      style={{ left: '90px', backgroundColor: '#fff', border: '3px solid #2a2a2a', borderRadius: '10px', boxShadow: '4px 4px 0 rgba(42,42,42,0.3)' }}
+                      className="absolute top-full mt-2 p-2 flex flex-col gap-2"
+                      style={{ left: '90px', backgroundColor: '#fff', border: '3px solid #2a2a2a', borderRadius: '10px', boxShadow: '4px 4px 0 rgba(42,42,42,0.3)', zIndex: 9999 }}
                       onPointerDown={(e) => e.stopPropagation()}
                     >
                       {BRUSH_SIZES.map((size) => (
@@ -741,6 +800,24 @@ export default function Game() {
             >
               Choose a word to draw! ✏️
             </h2>
+            {/* Countdown */}
+            <div className="flex items-center justify-center gap-2">
+              <div
+                className="text-3xl font-bold px-4 py-1 rounded-lg"
+                style={{
+                  fontFamily: "'Bubblegum Sans', cursive",
+                  backgroundColor: wordChoiceTimeLeft <= 5 ? '#ff6b6b' : '#ffd966',
+                  border: '3px solid #2a2a2a',
+                  color: wordChoiceTimeLeft <= 5 ? '#fff' : '#2a2a2a',
+                  minWidth: '60px',
+                  textAlign: 'center',
+                  transition: 'background-color 0.3s',
+                }}
+              >
+                {wordChoiceTimeLeft}s
+              </div>
+              <p className="text-sm text-gray-500">Auto-picks if you don't choose</p>
+            </div>
             <p className="text-center text-sm text-gray-600">
               Pick one of these words to draw for the other players
             </p>
