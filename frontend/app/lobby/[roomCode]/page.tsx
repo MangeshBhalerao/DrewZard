@@ -59,7 +59,8 @@ export default function Lobby() {
       return;
     }
 
-    const websocketUrl = `ws://localhost:8000/ws/${roomCode}`;
+    const wsBase = process.env.NEXT_PUBLIC_BACKEND_WS_URL || 'ws://localhost:8000';
+    const websocketUrl = `${wsBase}/ws/${roomCode}`;
     socketRef.current = new WebSocket(websocketUrl);
     const socket = socketRef.current;
     hasConnectedRef.current = true; // Mark as connected

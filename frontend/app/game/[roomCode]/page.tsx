@@ -106,7 +106,8 @@ export default function Game() {
     
     hasConnectedRef.current = true;
     console.log('🔌🔌🔌 Creating GAME PAGE WebSocket connection...');
-    const socket = new WebSocket(`ws://localhost:8000/ws/${roomCode}`);
+    const wsBase = process.env.NEXT_PUBLIC_BACKEND_WS_URL || 'ws://localhost:8000';
+    const socket = new WebSocket(`${wsBase}/ws/${roomCode}`);
     socketRef.current = socket;
 
     socket.onopen = () => {
