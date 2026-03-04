@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { NotebookBackground } from '@/components/NotebookBackground';
 import { FloatingDoodles } from '@/components/FloatingDoodles';
 import { SketchyButton } from '@/components/SketchyButton';
-import { ArrowLeft, Copy, CheckCircle2, Send } from 'lucide-react';
+import { ArrowLeft, Copy, CheckCircle2, Send, Share2 } from 'lucide-react';
 
 interface Player {
   id: number;
@@ -32,6 +32,7 @@ export default function Lobby() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [isReady, setIsReady] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
   const [chatMessage, setChatMessage] = useState('');
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     { id: 1, player: 'System', message: 'Welcome to the lobby!', isSystem: true },
@@ -183,6 +184,13 @@ export default function Lobby() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
+  };
+
+  const handleShareLink = () => {
+    const url = `${window.location.origin}/lobby/${roomCode}`;
+    navigator.clipboard.writeText(url);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
   };
 
   const handleSendMessage = () => {
@@ -375,6 +383,22 @@ export default function Lobby() {
                 )}
               </button>
             </div>
+            {/* Share invite link */}
+            <button
+              onClick={handleShareLink}
+              className="mt-4 flex items-center gap-2 mx-auto px-4 py-2 rounded-xl hover:scale-105 transition-transform text-sm font-semibold"
+              style={{
+                backgroundColor: copiedLink ? '#bae1ba' : '#ffffff',
+                border: '2px solid #2a2a2a',
+                boxShadow: '3px 3px 0 rgba(42,42,42,0.2)',
+              }}
+            >
+              {copiedLink ? (
+                <><CheckCircle2 className="w-4 h-4" style={{ color: '#16a34a' }} /> Link Copied!</>
+              ) : (
+                <><Share2 className="w-4 h-4" /> Share Invite Link</>
+              )}
+            </button>
           </div>
         </div>
 
