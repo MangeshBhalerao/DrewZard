@@ -54,6 +54,7 @@ export default function Game() {
   const [finalScores, setFinalScores] = useState<Player[]>([]);
   const [winner, setWinner] = useState('');
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showBrushPicker, setShowBrushPicker] = useState(false);
 
   // Timer
   useEffect(() => {
@@ -92,13 +93,13 @@ export default function Game() {
     }
   };
 
-  // Close color picker when clicking outside
+  // Close pickers when clicking outside
   useEffect(() => {
-    if (!showColorPicker) return;
-    const close = () => setShowColorPicker(false);
+    if (!showColorPicker && !showBrushPicker) return;
+    const close = () => { setShowColorPicker(false); setShowBrushPicker(false); };
     document.addEventListener('pointerdown', close);
     return () => document.removeEventListener('pointerdown', close);
-  }, [showColorPicker]);
+  }, [showColorPicker, showBrushPicker]);
 
   // WebSocket connection
   useEffect(() => {
@@ -427,7 +428,7 @@ export default function Game() {
                         onClick={() => setBrushSize(size)}
                         title={`${size}px`}
                       >
-                        <div className="rounded-full" style={{ width: `${Math.min(size, 12)}px`, height: `${Math.min(size, 12)}px`, backgroundColor: '#2a2a2a' }} />
+                        <div className="rounded-full" style={{ width: `${Math.min(size, 12)}px`, height: `${Math.min(size, 12)}px`, backgroundColor: currentColor === '#ffffff' ? '#2a2a2a' : currentColor }} />
                       </button>
                     ))}
                   </div>
@@ -453,10 +454,10 @@ export default function Game() {
                     <span className="text-xs">{showColorPicker ? '▲' : '▼'}</span>
                   </button>
 
-                  {/* Color popup */}
+                  {/* Color popup — opens upward so it doesn't overlap canvas */}
                   {showColorPicker && (
                     <div
-                      className="absolute top-full left-0 mt-2 p-2 z-50 grid grid-cols-4 gap-1.5"
+                      className="absolute bottom-full left-0 mb-2 p-2 z-50 grid grid-cols-4 gap-1.5"
                       style={{ backgroundColor: '#fff', border: '3px solid #2a2a2a', borderRadius: '10px', boxShadow: '4px 4px 0 rgba(42,42,42,0.3)' }}
                       onPointerDown={(e) => e.stopPropagation()}
                     >
@@ -474,17 +475,38 @@ export default function Game() {
 
                   <div className="w-px h-6" style={{ backgroundColor: 'rgba(42,42,42,0.2)' }} />
 
-                  {/* Compact brush sizes */}
-                  {BRUSH_SIZES.map((size) => (
-                    <button
-                      key={size}
-                      className="w-7 h-7 flex items-center justify-center rounded-md"
-                      style={{ border: '2px solid #2a2a2a', backgroundColor: brushSize === size ? '#5eb3f6' : '#ffffff' }}
-                      onClick={() => setBrushSize(size)}
+                  {/* Brush size picker trigger */}
+                  <button
+                    className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg"
+                    style={{ border: '2px solid #2a2a2a', backgroundColor: '#ffffff' }}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={() => setShowBrushPicker(p => !p)}
+                  >
+                    <div className="rounded-full" style={{ width: `${Math.min(brushSize, 10)}px`, height: `${Math.min(brushSize, 10)}px`, backgroundColor: currentColor === '#ffffff' ? '#2a2a2a' : currentColor }} />
+                    <span className="text-xs font-bold">Size</span>
+                    <span className="text-xs">{showBrushPicker ? '▲' : '▼'}</span>
+                  </button>
+
+                  {/* Brush size popup — opens upward */}
+                  {showBrushPicker && (
+                    <div
+                      className="absolute bottom-full mb-2 p-2 z-50 flex flex-col gap-2"
+                      style={{ left: '90px', backgroundColor: '#fff', border: '3px solid #2a2a2a', borderRadius: '10px', boxShadow: '4px 4px 0 rgba(42,42,42,0.3)' }}
+                      onPointerDown={(e) => e.stopPropagation()}
                     >
-                      <div className="rounded-full" style={{ width: `${Math.min(size, 10)}px`, height: `${Math.min(size, 10)}px`, backgroundColor: '#2a2a2a' }} />
-                    </button>
-                  ))}
+                      {BRUSH_SIZES.map((size) => (
+                        <button
+                          key={size}
+                          className="flex items-center gap-2 px-3 py-1.5 rounded-lg"
+                          style={{ border: '2px solid #2a2a2a', backgroundColor: brushSize === size ? '#5eb3f6' : '#ffffff', minWidth: '80px' }}
+                          onClick={() => { setBrushSize(size); setShowBrushPicker(false); }}
+                        >
+                          <div className="rounded-full flex-shrink-0" style={{ width: `${Math.min(size, 14)}px`, height: `${Math.min(size, 14)}px`, backgroundColor: currentColor === '#ffffff' ? '#2a2a2a' : currentColor }} />
+                          <span className="text-xs font-bold">{size}px</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
 
                   <div className="w-px h-6" style={{ backgroundColor: 'rgba(42,42,42,0.2)' }} />
 
