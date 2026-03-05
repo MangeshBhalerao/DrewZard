@@ -974,13 +974,27 @@ export default function Game() {
                 ))}
               </div>
             </div>
-            <SketchyButton
-              variant="primary"
-              onClick={() => router.push('/')}
-              className="text-xl py-3"
-            >
-              Return to Home
-            </SketchyButton>
+            <div className="flex gap-3">
+              <SketchyButton
+                variant="secondary"
+                onClick={() => {
+                  // Reset connection flag so lobby opens a fresh WebSocket
+                  hasConnectedRef.current = false;
+                  if (socketRef.current) { socketRef.current.close(); socketRef.current = null; }
+                  router.push(`/lobby/${roomCode}`);
+                }}
+                className="text-xl py-3 flex-1"
+              >
+                🏠 Back to Lobby
+              </SketchyButton>
+              <SketchyButton
+                variant="primary"
+                onClick={() => router.push('/')}
+                className="text-xl py-3 flex-1"
+              >
+                🚪 Return to Home
+              </SketchyButton>
+            </div>
           </div>
         </div>
       )}

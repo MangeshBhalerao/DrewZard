@@ -108,6 +108,20 @@ async def end_turn(room_id: str, reason: str = "time_up", drawer_bonus: int = 0)
     await asyncio.sleep(3)
     if manager.is_game_complete(room_id):
         final_scores = manager.get_final_scores(room_id)
+        # Reset game state so players can play again from the lobby
+        room = manager.rooms.get(room_id)
+        if room:
+            room["game_started"]     = False
+            room["current_word"]     = ""
+            room["drawer"]           = ""
+            room["turn"]             = 0
+            room["current_round"]    = 0
+            room["turn_ended"]       = False
+            room["correct_guessers"] = []
+            room["player_order"]     = []
+            for ws, player in room["players"].items():
+                player["ready"] = False
+                player["score"] = 0
         await manager.broadcast(room_id, {
             "type":         "game_complete",
             "final_scores": final_scores,

@@ -228,6 +228,11 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
           ctx.lineCap = 'round';
           ctx.lineJoin = 'round';
           lastReceivedPosRef.current = { x, y };
+          // Draw dot immediately so single taps are visible
+          ctx.fillStyle = data.color;
+          ctx.beginPath();
+          ctx.arc(x, y, (data.brushSize || 5) / 2, 0, Math.PI * 2);
+          ctx.fill();
         }
 
         if (data.type === 'draw') {
@@ -417,6 +422,12 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
       ctx.lineJoin = 'round';
       // Store start position for first segment
       lastReceivedPosRef.current = { x, y };
+
+      // Draw a dot immediately so single taps leave a mark
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(x, y, brushSize / 2, 0, Math.PI * 2);
+      ctx.fill();
 
       // Send normalized coords to server
       if (socketRef.current?.readyState === WebSocket.OPEN) {
