@@ -618,8 +618,6 @@ export default function Game() {
                     <span className="text-sm leading-none">🪣</span>
                   </button>
                   <button className="p-1.5 rounded-md" style={{ backgroundColor: '#ff6b6b', color: '#fff', border: '2px solid #2a2a2a' }} onClick={clearCanvas} title="Clear"><Trash2 className="w-4 h-4" /></button>
-                  <button className="p-1.5 rounded-md" style={{ backgroundColor: '#bae1ba', border: '2px solid #2a2a2a' }} onClick={() => canvasRef.current?.undo()} title="Undo"><Undo className="w-4 h-4" /></button>
-                  <button className="p-1.5 rounded-md" style={{ backgroundColor: '#bae1ba', border: '2px solid #2a2a2a' }} onClick={() => canvasRef.current?.redo()} title="Redo"><Redo className="w-4 h-4" /></button>
                 </div>
               </div>
               )}
@@ -647,7 +645,14 @@ export default function Game() {
               )}
 
               {/* Canvas - sticky on mobile so it stays visible when scrolling to chat */}
-              <div ref={canvasWrapperRef} className="w-full lg:flex-1 lg:min-h-0 sticky top-1 lg:static" style={{ aspectRatio: '4 / 3', zIndex: 5 }}>
+              <div ref={canvasWrapperRef} className="w-full lg:flex-1 lg:min-h-0 sticky top-1 lg:static" style={{ aspectRatio: '4 / 3', zIndex: 5, position: 'relative' }}>
+                {/* Floating undo/redo — mobile only, top-left of canvas */}
+                {username === drawer && (
+                  <div className="sm:hidden absolute top-2 left-2 flex gap-1.5" style={{ zIndex: 20 }}>
+                    <button className="p-2 rounded-lg" style={{ backgroundColor: '#bae1ba', border: '2px solid #2a2a2a', boxShadow: '2px 2px 0 rgba(42,42,42,0.3)' }} onClick={() => canvasRef.current?.undo()} title="Undo"><Undo className="w-4 h-4" /></button>
+                    <button className="p-2 rounded-lg" style={{ backgroundColor: '#bae1ba', border: '2px solid #2a2a2a', boxShadow: '2px 2px 0 rgba(42,42,42,0.3)' }} onClick={() => canvasRef.current?.redo()} title="Redo"><Redo className="w-4 h-4" /></button>
+                  </div>
+                )}
                 {joined && (
                   <DrawingCanvas
                     ref={canvasRef}
@@ -781,9 +786,13 @@ export default function Game() {
                     }}
                     onFocus={(e) => {
                       e.target.style.boxShadow = '0 0 0 2px rgba(94, 179, 246, 0.5)';
-                      // On mobile, scroll canvas into view so the player can see the drawing while typing
+                      // On mobile: first bring canvas into view, then after keyboard opens keep input visible
                       if (window.innerWidth < 1024) {
                         canvasWrapperRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        setTimeout(() => {
+                          window.scrollBy({ top: 100, behavior: 'smooth' });
+                          e.target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }, 400);
                       }
                     }}
                     onBlur={(e) => {
