@@ -14,6 +14,7 @@ interface DrawingCanvasProps {
   isDrawer?: boolean;  // Only drawer can draw
   socket?: WebSocket | null;  // Use shared WebSocket from parent
   fillMode?: boolean;  // Fill bucket mode
+  onFillUsed?: () => void; // Called after each fill so parent can deactivate
 }
 
 export interface DrawingCanvasRef {
@@ -23,7 +24,7 @@ export interface DrawingCanvasRef {
 }
 
 export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
-  ({ roomCode, username, color, brushSize, isDrawing, onDrawingChange, className, style, isDrawer = true, socket: externalSocket, fillMode = false }, ref) => {
+  ({ roomCode, username, color, brushSize, isDrawing, onDrawingChange, className, style, isDrawer = true, socket: externalSocket, fillMode = false, onFillUsed }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const socketRef = useRef<WebSocket | null>(null);
     const isDrawingRef = useRef(false);
@@ -397,6 +398,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
             color: colorRef.current,
           }));
         }
+        onFillUsed?.(); // auto-deactivate fill mode after one use
         return;
       }
 

@@ -534,8 +534,9 @@ export default function Game() {
                   <div className="h-8 w-px" style={{ backgroundColor: 'rgba(42,42,42,0.2)' }} />
                   {/* Action buttons */}
                   <button className="p-1.5 rounded-lg hover:scale-110 transition-transform" style={{ backgroundColor: '#ffb3ba', border: '2px solid #2a2a2a' }} onClick={() => { setCurrentColor('#ffffff'); setFillMode(false); }} title="Eraser"><Eraser className="w-5 h-5" /></button>
-                  <button className="p-1.5 rounded-lg hover:scale-110 transition-transform" style={{ backgroundColor: fillMode ? '#5eb3f6' : '#e8d5ff', border: fillMode ? '3px solid #2a2a2a' : '2px solid #2a2a2a' }} onClick={() => setFillMode(f => !f)} title="Fill">
+                  <button className="p-1.5 rounded-lg hover:scale-110 transition-transform flex items-center gap-1" style={{ backgroundColor: fillMode ? '#ff6b6b' : '#e8d5ff', border: fillMode ? '3px solid #2a2a2a' : '2px solid #2a2a2a' }} onClick={() => setFillMode(f => !f)} title="Fill">
                     <span className="text-base leading-none">🪣</span>
+                    {fillMode && <span className="text-xs font-bold">ON</span>}
                   </button>
                   <button className="p-1.5 rounded-lg hover:scale-110 transition-transform" style={{ backgroundColor: '#ff6b6b', color: '#fff', border: '2px solid #2a2a2a' }} onClick={clearCanvas} title="Clear"><Trash2 className="w-5 h-5" /></button>
                   <button className="p-1.5 rounded-lg hover:scale-110 transition-transform" style={{ backgroundColor: '#bae1ba', border: '2px solid #2a2a2a' }} onClick={() => canvasRef.current?.undo()} title="Undo"><Undo className="w-5 h-5" /></button>
@@ -614,8 +615,9 @@ export default function Game() {
 
                   {/* Action icons */}
                   <button className="p-1.5 rounded-md" style={{ backgroundColor: '#ffb3ba', border: '2px solid #2a2a2a' }} onClick={() => { setCurrentColor('#ffffff'); setFillMode(false); }} title="Eraser"><Eraser className="w-4 h-4" /></button>
-                  <button className="p-1.5 rounded-md" style={{ backgroundColor: fillMode ? '#5eb3f6' : '#e8d5ff', border: fillMode ? '3px solid #2a2a2a' : '2px solid #2a2a2a' }} onClick={() => setFillMode(f => !f)} title="Fill">
+                  <button className="p-1.5 rounded-md flex items-center gap-1" style={{ backgroundColor: fillMode ? '#ff6b6b' : '#e8d5ff', border: fillMode ? '3px solid #2a2a2a' : '2px solid #2a2a2a' }} onClick={() => setFillMode(f => !f)} title="Fill">
                     <span className="text-sm leading-none">🪣</span>
+                    {fillMode && <span className="text-xs font-bold">ON</span>}
                   </button>
                   <button className="p-1.5 rounded-md" style={{ backgroundColor: '#ff6b6b', color: '#fff', border: '2px solid #2a2a2a' }} onClick={clearCanvas} title="Clear"><Trash2 className="w-4 h-4" /></button>
                 </div>
@@ -665,6 +667,7 @@ export default function Game() {
                     isDrawer={username === drawer}
                     socket={socketRef.current}
                     fillMode={fillMode}
+                    onFillUsed={() => setFillMode(false)}
                     className="w-full h-full"
                     style={{ 
                       border: '4px solid #2a2a2a',
