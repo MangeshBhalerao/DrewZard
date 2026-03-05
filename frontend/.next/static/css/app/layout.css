@@ -754,6 +754,9 @@ input {
 .max-w-md{
   max-width: 28rem;
 }
+.max-w-\[120px\]{
+  max-width: 120px;
+}
 .flex-1{
   flex: 1 1 0%;
 }
@@ -982,6 +985,10 @@ input {
   padding-top: 2rem;
   padding-bottom: 2rem;
 }
+.px-1{
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
+}
 .pb-2{
   padding-bottom: 0.5rem;
 }
@@ -1157,6 +1164,9 @@ button,
   opacity: 0.5;
 }
 @media (min-width: 640px){
+  .sm\:block{
+    display: block;
+  }
   .sm\:inline{
     display: inline;
   }
@@ -1202,6 +1212,9 @@ button,
 @media (min-width: 768px){
   .md\:block{
     display: block;
+  }
+  .md\:flex{
+    display: flex;
   }
   .md\:hidden{
     display: none;

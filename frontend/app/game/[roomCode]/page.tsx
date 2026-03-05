@@ -403,6 +403,7 @@ export default function Game() {
         {/* Header */}
         <div className="p-3 border-b-4 border-solid sticky top-0 z-30" style={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)', borderColor: '#2a2a2a' }}>
           <div className="container mx-auto flex items-center justify-between gap-2">
+            {/* Leave button — always visible */}
             <button
               onClick={() => router.push(`/lobby/${roomCode}`)}
               className="flex items-center gap-2 transition-colors"
@@ -414,60 +415,53 @@ export default function Game() {
               <span className="hidden sm:inline">Leave</span>
             </button>
 
-            <div className="flex items-center gap-2 sm:gap-4">
-              <div 
-                className="px-2 sm:px-4 py-1 sm:py-2"
-                style={{
-                  backgroundColor: '#ffd966',
-                  border: '3px solid #2a2a2a',
-                  borderRadius: '8px',
-                }}
+            {/* ── Mobile layout: Round | Timer | Hint ── */}
+            <div className="flex md:hidden items-center gap-2 flex-1 justify-between px-1">
+              {/* Round — left */}
+              <div
+                className="px-2 py-1"
+                style={{ backgroundColor: '#bae1ba', border: '3px solid #2a2a2a', borderRadius: '8px', minWidth: '56px', textAlign: 'center' }}
               >
-                <span className="text-xs sm:text-sm">Room: </span>
-                <span 
-                  className="text-lg sm:text-xl"
-                  style={{ fontFamily: "'Bubblegum Sans', cursive" }}
-                >
-                  {roomCode}
-                </span>
+                <span className="text-xs">Round: </span>
+                <span className="text-lg font-bold" style={{ fontFamily: "'Bubblegum Sans', cursive" }}>{round || '-'}</span>
               </div>
-
-              {round > 0 && (
-                <div 
-                  className="px-2 sm:px-4 py-1 sm:py-2"
-                  style={{
-                    backgroundColor: '#bae1ba',
-                    border: '3px solid #2a2a2a',
-                    borderRadius: '8px',
-                  }}
-                >
-                  <span className="text-xs sm:text-sm">Round: </span>
-                  <span 
-                    className="text-lg sm:text-xl"
-                    style={{ fontFamily: "'Bubblegum Sans', cursive" }}
-                  >
-                    {round}
-                  </span>
-                </div>
-              )}
-              
+              {/* Timer — center */}
               <Timer seconds={timeLeft} />
-            </div>
-
-            <div className="text-right hidden md:block">
-              <p className="text-sm" style={{ color: '#6a6a6a' }}>
-                {username === drawer ? "You're drawing:" : "Guess the word:"}
-              </p>
-              <p 
-                className="text-2xl"
-                style={{ fontFamily: "'Bubblegum Sans', cursive", letterSpacing: '0.15em', whiteSpace: 'pre' }}
+              {/* Word hint — right */}
+              <p
+                className="text-base text-right"
+                style={{ fontFamily: "'Bubblegum Sans', cursive", letterSpacing: '0.12em', whiteSpace: 'pre', maxWidth: '130px', overflow: 'hidden' }}
               >
                 {username === drawer ? currentWord : wordHint}
               </p>
             </div>
-            <div className="md:hidden">
-              <p 
-                className="text-lg"
+
+            {/* ── Desktop layout: badges + timer | hint ── */}
+            <div className="hidden md:flex items-center gap-4">
+              <div
+                className="px-4 py-2"
+                style={{ backgroundColor: '#ffd966', border: '3px solid #2a2a2a', borderRadius: '8px' }}
+              >
+                <span className="text-sm">Room: </span>
+                <span className="text-xl" style={{ fontFamily: "'Bubblegum Sans', cursive" }}>{roomCode}</span>
+              </div>
+              {round > 0 && (
+                <div
+                  className="px-4 py-2"
+                  style={{ backgroundColor: '#bae1ba', border: '3px solid #2a2a2a', borderRadius: '8px' }}
+                >
+                  <span className="text-sm">Round: </span>
+                  <span className="text-xl" style={{ fontFamily: "'Bubblegum Sans', cursive" }}>{round}</span>
+                </div>
+              )}
+              <Timer seconds={timeLeft} />
+            </div>
+            <div className="text-right hidden md:block">
+              <p className="text-sm" style={{ color: '#6a6a6a' }}>
+                {username === drawer ? "You're drawing:" : "Guess the word:"}
+              </p>
+              <p
+                className="text-2xl"
                 style={{ fontFamily: "'Bubblegum Sans', cursive", letterSpacing: '0.15em', whiteSpace: 'pre' }}
               >
                 {username === drawer ? currentWord : wordHint}
@@ -748,15 +742,23 @@ export default function Game() {
                   boxShadow: '3px 3px 0px 0px rgba(42, 42, 42, 0.3)',
                 }}
               >
-                <h3 
-                  className="text-xl mb-3 pb-2"
-                  style={{ 
-                    fontFamily: "'Bubblegum Sans', cursive",
-                    borderBottom: '2px dashed rgba(42, 42, 42, 0.2)',
-                  }}
-                >
-                  Guesses 💭
-                </h3>
+                  <div className="flex items-center justify-between mb-3 pb-2" style={{ borderBottom: '2px dashed rgba(42, 42, 42, 0.2)' }}>
+                  <h3 
+                    className="text-xl"
+                    style={{ fontFamily: "'Bubblegum Sans', cursive" }}
+                  >
+                    Guesses 💭
+                  </h3>
+                  {/* Mobile: room code shown here */}
+                  <div className="flex items-center gap-2 md:hidden">
+                    <span
+                      className="px-2 py-0.5 text-sm font-bold rounded"
+                      style={{ backgroundColor: '#ffd966', border: '2px solid #2a2a2a', fontFamily: "'Bubblegum Sans', cursive" }}
+                    >
+                      {roomCode}
+                    </span>
+                  </div>
+                </div>
                 
                 <div ref={chatScrollRef} className="overflow-y-auto space-y-2 mb-3" style={{ maxHeight: '240px', minHeight: '120px' }}>
                   {guesses.map((guess) => (
