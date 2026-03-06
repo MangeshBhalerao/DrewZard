@@ -490,6 +490,9 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                     "room_code": room_id
                 })
 
+            elif message_type == "ping":
+                pass  # keepalive, no response needed
+
             else:
                 print(f"⚠️  Unknown message type: {message_type}")
 

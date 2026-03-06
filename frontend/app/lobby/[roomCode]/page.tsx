@@ -29,6 +29,9 @@ export default function Lobby() {
   const socketRef = useRef<WebSocket | null>(null);
   const hasConnectedRef = useRef(false); // Prevent multiple connections
   const isGameStartingRef = useRef(false); // Track if game is starting
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const usernameRef = useRef(''); // Always-current username for reconnect closure
   
   const [players, setPlayers] = useState<Player[]>([]);
   const [isReady, setIsReady] = useState(false);
@@ -54,118 +57,130 @@ export default function Lobby() {
   // WebSocket connection
   useEffect(() => {
     if (!joined) return;
-    
-    // Prevent multiple connections
-    if (hasConnectedRef.current) {
-      console.log('Lobby WebSocket already connected, skipping...');
-      return;
-    }
+
+    // Keep usernameRef in sync so the reconnect closure always has the latest value
+    usernameRef.current = username;
 
     const wsBase = process.env.NEXT_PUBLIC_BACKEND_WS_URL || 'ws://localhost:8000';
     const websocketUrl = `${wsBase}/ws/${roomCode}`;
-    socketRef.current = new WebSocket(websocketUrl);
-    const socket = socketRef.current;
-    hasConnectedRef.current = true; // Mark as connected
 
-    socket.onopen = () => {
-      socket.send(JSON.stringify({
-        type: 'join',
-        username: username,
-      }));
-    };
+    const connectWebSocket = () => {
+      if (hasConnectedRef.current) return;
+      if (isGameStartingRef.current) return;
 
-    socket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      
-      // Handle players list update
-      if (data.type === 'players_update') {
-        const updatedPlayers = data.players.map((player: any, index: number) => ({
-          id: index + 1,
-          name: player.name,
-          isReady: player.ready,  // Use ready status from backend
-          avatar: getRandomAvatar(),
-          isAdmin: player.is_admin || false,
+      const socket = new WebSocket(websocketUrl);
+      socketRef.current = socket;
+      hasConnectedRef.current = true;
+
+      // Keepalive ping every 25 s to prevent Render.com from dropping idle connections
+      const pingInterval = setInterval(() => {
+        if (socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({ type: 'ping' }));
+        }
+      }, 25000);
+      pingIntervalRef.current = pingInterval;
+
+      socket.onopen = () => {
+        socket.send(JSON.stringify({
+          type: 'join',
+          username: usernameRef.current,
         }));
-        setPlayers(updatedPlayers);
-        
-        // Update my ready state if I'm in the list
-        const myPlayer = updatedPlayers.find((p: Player) => p.name === username);
-        if (myPlayer) {
-          setIsReady(myPlayer.isReady);
-        }
-      }
+      };
 
-      // Handle chat messages (including system messages)
-      if (data.type === 'chat') {
-        setChatMessages(prev => [...prev, {
-          id: Date.now(),
-          player: data.username,
-          message: data.message,
-          isSystem: data.isSystem || false,
-        }]);
-      }
+      socket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
 
-      // Handle game starting countdown
-      if (data.type === 'game_starting') {
-        isGameStartingRef.current = true; // Mark that game is starting
-        const countdownValue = data.countdown || 3;
-        setCountdown(countdownValue);
-        
-        // Countdown timer
-        let current = countdownValue;
-        const timer = setInterval(() => {
-          current -= 1;
-          setCountdown(current);
-          if (current <= 0) {
-            clearInterval(timer);
+        if (data.type === 'players_update') {
+          const updatedPlayers = data.players.map((player: any, index: number) => ({
+            id: index + 1,
+            name: player.name,
+            isReady: player.ready,
+            avatar: getRandomAvatar(),
+            isAdmin: player.is_admin || false,
+          }));
+          setPlayers(updatedPlayers);
+
+          const myPlayer = updatedPlayers.find((p: Player) => p.name === usernameRef.current);
+          if (myPlayer) {
+            setIsReady(myPlayer.isReady);
           }
-        }, 1000);
-        
-        setChatMessages(prev => [...prev, {
-          id: Date.now(),
-          player: 'System',
-          message: '🎮 Admin started the game!',
-          isSystem: true,
-        }]);
-      }
-
-      // Handle player kicked
-      if (data.type === 'player_kicked') {
-        if (data.player_name === username) {
-          alert('You have been kicked from the room by the admin');
-          router.push('/');
         }
-      }
 
-      // Handle game start
-      if (data.type === 'game_start' || data.type === 'game_in_progress') {
-        setCountdown(null);
-        isGameStartingRef.current = false;
-        socket.close();
+        if (data.type === 'chat') {
+          setChatMessages(prev => [...prev, {
+            id: Date.now(),
+            player: data.username,
+            message: data.message,
+            isSystem: data.isSystem || false,
+          }]);
+        }
+
+        if (data.type === 'game_starting') {
+          isGameStartingRef.current = true;
+          const countdownValue = data.countdown || 3;
+          setCountdown(countdownValue);
+
+          let current = countdownValue;
+          const timer = setInterval(() => {
+            current -= 1;
+            setCountdown(current);
+            if (current <= 0) clearInterval(timer);
+          }, 1000);
+
+          setChatMessages(prev => [...prev, {
+            id: Date.now(),
+            player: 'System',
+            message: '🎮 Admin started the game!',
+            isSystem: true,
+          }]);
+        }
+
+        if (data.type === 'player_kicked') {
+          if (data.player_name === usernameRef.current) {
+            alert('You have been kicked from the room by the admin');
+            router.push('/');
+          }
+        }
+
+        if (data.type === 'game_start' || data.type === 'game_in_progress') {
+          setCountdown(null);
+          isGameStartingRef.current = false;
+          clearInterval(pingInterval);
+          socket.close();
+          hasConnectedRef.current = false;
+          setTimeout(() => {
+            router.push(`/game/${roomCode}`);
+          }, 100);
+        }
+      };
+
+      socket.onerror = () => { /* handled by onclose */ };
+
+      socket.onclose = () => {
+        clearInterval(pingInterval);
         hasConnectedRef.current = false;
-        setTimeout(() => {
-          router.push(`/game/${roomCode}`);
-        }, 100);
-      }
+
+        // Auto-reconnect unless we're transitioning to the game
+        if (!isGameStartingRef.current) {
+          reconnectTimerRef.current = setTimeout(() => {
+            connectWebSocket();
+          }, 3000);
+        }
+      };
     };
 
-    socket.onerror = (error) => {
-      // WebSocket error
-    };
-
-    socket.onclose = () => {
-      hasConnectedRef.current = false;
-    };
+    connectWebSocket();
 
     return () => {
-      // Don't close socket if game is starting (waiting for game_start message)
-      if (!isGameStartingRef.current) {
-        socket.close();
+      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+      if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
+      if (!isGameStartingRef.current && socketRef.current) {
+        socketRef.current.close();
       }
       hasConnectedRef.current = false;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [joined]); // Only reconnect if joined state changes
+  }, [joined]);
 
   const handleJoin = () => {
     if (username.trim()) {

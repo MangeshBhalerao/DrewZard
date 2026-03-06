@@ -555,6 +555,9 @@ input {
 .left-16{
   left: 4rem;
 }
+.left-2{
+  left: 0.5rem;
+}
 .left-20{
   left: 5rem;
 }
@@ -585,17 +588,14 @@ input {
 .top-10{
   top: 2.5rem;
 }
+.top-2{
+  top: 0.5rem;
+}
 .top-32{
   top: 8rem;
 }
 .top-full{
   top: 100%;
-}
-.left-2{
-  left: 0.5rem;
-}
-.top-2{
-  top: 0.5rem;
 }
 .-z-10{
   z-index: -10;
@@ -754,9 +754,6 @@ input {
 .max-w-md{
   max-width: 28rem;
 }
-.max-w-\[120px\]{
-  max-width: 120px;
-}
 .flex-1{
   flex: 1 1 0%;
 }
@@ -824,6 +821,9 @@ input {
 .justify-between{
   justify-content: space-between;
 }
+.gap-1{
+  gap: 0.25rem;
+}
 .gap-1\.5{
   gap: 0.375rem;
 }
@@ -841,9 +841,6 @@ input {
 }
 .gap-8{
   gap: 2rem;
-}
-.gap-1{
-  gap: 0.25rem;
 }
 .space-y-2 > :not([hidden]) ~ :not([hidden]){
   --tw-space-y-reverse: 0;
@@ -929,6 +926,10 @@ input {
 .p-8{
   padding: 2rem;
 }
+.px-1{
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
+}
 .px-1\.5{
   padding-left: 0.375rem;
   padding-right: 0.375rem;
@@ -984,10 +985,6 @@ input {
 .py-8{
   padding-top: 2rem;
   padding-bottom: 2rem;
-}
-.px-1{
-  padding-left: 0.25rem;
-  padding-right: 0.25rem;
 }
 .pb-2{
   padding-bottom: 0.5rem;
@@ -1164,9 +1161,6 @@ button,
   opacity: 0.5;
 }
 @media (min-width: 640px){
-  .sm\:block{
-    display: block;
-  }
   .sm\:inline{
     display: inline;
   }
@@ -1182,31 +1176,12 @@ button,
   .sm\:w-24{
     width: 6rem;
   }
-  .sm\:gap-4{
-    gap: 1rem;
-  }
   .sm\:p-3{
     padding: 0.75rem;
-  }
-  .sm\:px-4{
-    padding-left: 1rem;
-    padding-right: 1rem;
-  }
-  .sm\:py-2{
-    padding-top: 0.5rem;
-    padding-bottom: 0.5rem;
   }
   .sm\:text-2xl{
     font-size: 1.5rem;
     line-height: 2rem;
-  }
-  .sm\:text-sm{
-    font-size: 0.875rem;
-    line-height: 1.25rem;
-  }
-  .sm\:text-xl{
-    font-size: 1.25rem;
-    line-height: 1.75rem;
   }
 }
 @media (min-width: 768px){
