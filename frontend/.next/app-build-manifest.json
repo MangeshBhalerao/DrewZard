@@ -15,11 +15,6 @@
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/lobby/[roomCode]/page.js"
-    ],
-    "/game/[roomCode]/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/game/[roomCode]/page.js"
     ]
   }
 }
