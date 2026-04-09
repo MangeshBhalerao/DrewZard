@@ -8,6 +8,43 @@
 
 /* Global Styles */
 @layer base {
+  :root {
+    --background: #f9f9eb;
+    --card: #ffffff;
+    --foreground: #2a2a2a;
+    --primary: #5eb3f6;
+    --primary-foreground: #2a2a2a;
+    --secondary: #ffd966;
+    --secondary-foreground: #2a2a2a;
+    --accent: #ffb3ba;
+    --accent-foreground: #2a2a2a;
+    --muted: #f0f0e0;
+    --muted-foreground: #6a6a6a;
+    --destructive: #ff6b6b;
+    --destructive-foreground: #ffffff;
+    --border: rgba(42, 42, 42, 0.2);
+    --ring: rgba(94, 179, 246, 0.5);
+  }
+
+  .dark {
+    /* Beautiful modern gray dark theme like VS Code */
+    --background: #1e1e1e; /* Vscode background */
+    --card: #252526; /* Vscode panel background */
+    --foreground: #cccccc; /* Vscode text */
+    --primary: #5eb3f6; 
+    --primary-foreground: #2a2a2a; /* Keep dark text for light boxes */
+    --secondary: #ffd966;
+    --secondary-foreground: #2a2a2a; /* Keep dark text for light boxes */
+    --accent: #ffb3ba;
+    --accent-foreground: #2a2a2a; /* Keep dark text for light boxes */
+    --muted: #2d2d30; 
+    --muted-foreground: #999999; 
+    --destructive: #ff6b6b;
+    --destructive-foreground: #ffffff;
+    --border: #3e3e42;
+    --ring: rgba(94, 179, 246, 0.5);
+  }
+
   * {
     @apply outline-none;
   }
@@ -17,8 +54,11 @@
   }
 
   body {
-    @apply bg-background text-foreground font-hand;
+    background-color: var(--background);
+    color: var(--foreground);
+    @apply font-hand;
     font-family: 'Patrick Hand', cursive;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 
   h1 {
@@ -71,24 +111,24 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #f0f0e0;
+  background: var(--muted);
   border-radius: 5px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #5eb3f6;
+  background: var(--primary);
   border-radius: 5px;
-  border: 2px solid #2a2a2a;
+  border: 2px solid var(--foreground);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #4a9fd6;
+  background: var(--ring);
 }
 
 /* Selection Styling */
 ::selection {
-  background: #ffd966;
-  color: #2a2a2a;
+  background: var(--secondary);
+  color: var(--secondary-foreground);
 }
 
 /* Prevent text selection on buttons and interactive elements */
@@ -101,24 +141,24 @@ button,
 /* Utility Classes */
 @layer utilities {
   .sketchy-shadow {
-    box-shadow: 3px 3px 0px 0px rgba(42, 42, 42, 0.3);
+    box-shadow: 3px 3px 0px 0px var(--border);
   }
 
   .sketchy-shadow-lg {
-    box-shadow: 5px 5px 0px 0px rgba(42, 42, 42, 0.3);
+    box-shadow: 5px 5px 0px 0px var(--border);
   }
 
   .sketchy-shadow-sm {
-    box-shadow: 2px 2px 0px 0px rgba(42, 42, 42, 0.3);
+    box-shadow: 2px 2px 0px 0px var(--border);
   }
 
   .sketchy-border {
-    border: 3px solid #2a2a2a;
+    border: 3px solid var(--foreground);
     border-radius: 12px;
   }
 
   .sketchy-border-sm {
-    border: 2px solid #2a2a2a;
+    border: 2px solid var(--foreground);
     border-radius: 8px;
   }
 }

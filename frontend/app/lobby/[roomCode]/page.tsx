@@ -267,12 +267,13 @@ export default function Lobby() {
       {!joined && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
           <div 
-            className="bg-white p-8 flex flex-col gap-4"
+            className="p-8 flex flex-col gap-4"
             style={{
-              border: '4px solid #2a2a2a',
+              backgroundColor: 'var(--card)',
+              border: '4px solid var(--foreground)',
               borderRadius: '16px',
               transform: 'rotate(-1deg)',
-              boxShadow: '5px 5px 0px 0px rgba(42, 42, 42, 0.3)',
+              boxShadow: '5px 5px 0px 0px var(--border)',
             }}
           >
             <h2 
@@ -289,7 +290,9 @@ export default function Lobby() {
               placeholder="Your name"
               autoFocus
               style={{
-                border: '3px solid #2a2a2a',
+                backgroundColor: 'var(--background)',
+                color: 'var(--foreground)',
+                border: '3px solid var(--foreground)',
                 borderRadius: '8px',
                 outline: 'none',
               }}
@@ -312,17 +315,17 @@ export default function Lobby() {
           <div 
             className="bg-white p-16 flex flex-col items-center gap-6"
             style={{
-              border: '6px solid #2a2a2a',
+              border: '6px solid var(--foreground)',
               borderRadius: '24px',
               transform: 'rotate(-2deg)',
-              boxShadow: '10px 10px 0px 0px rgba(42, 42, 42, 0.5)',
+              boxShadow: '10px 10px 0px 0px var(--border)',
             }}
           >
             <h2 
               className="text-4xl"
               style={{ 
                 fontFamily: "'Bubblegum Sans', cursive",
-                color: '#2a2a2a'
+                color: 'var(--foreground)'
               }}
             >
               🎮 Game Starting!
@@ -347,7 +350,7 @@ export default function Lobby() {
           <button
             onClick={() => router.push('/')}
             className="flex items-center gap-2 transition-colors"
-            style={{ color: '#2a2a2a' }}
+            style={{ color: 'var(--foreground)' }}
             onMouseEnter={(e) => e.currentTarget.style.color = '#5eb3f6'}
             onMouseLeave={(e) => e.currentTarget.style.color = '#2a2a2a'}
           >
@@ -373,10 +376,11 @@ export default function Lobby() {
           className="max-w-md mx-auto mb-8 p-6"
           style={{
             backgroundColor: '#ffd966',
+            color: '#2a2a2a',
             border: '4px solid #2a2a2a',
             borderRadius: '16px',
             transform: 'rotate(-1deg)',
-            boxShadow: '5px 5px 0px 0px rgba(42, 42, 42, 0.3)',
+            boxShadow: '5px 5px 0px 0px var(--border)',
           }}
         >
           <div className="text-center">
@@ -404,9 +408,10 @@ export default function Lobby() {
               onClick={handleShareLink}
               className="mt-4 flex items-center gap-2 mx-auto px-4 py-2 rounded-xl hover:scale-105 transition-transform text-sm font-semibold"
               style={{
-                backgroundColor: copiedLink ? '#bae1ba' : '#ffffff',
-                border: '2px solid #2a2a2a',
-                boxShadow: '3px 3px 0 rgba(42,42,42,0.2)',
+                backgroundColor: copiedLink ? '#bae1ba' : 'var(--card)',
+                color: copiedLink ? '#2a2a2a' : 'var(--foreground)',
+                border: '2px solid var(--border)',
+                boxShadow: '3px 3px 0 var(--border)',
               }}
             >
               {copiedLink ? (
@@ -425,11 +430,11 @@ export default function Lobby() {
             <div 
               className="p-6"
               style={{
-                backgroundColor: '#ffffff',
-                border: '4px solid #2a2a2a',
+                backgroundColor: 'var(--card)',
+                border: '4px solid var(--foreground)',
                 borderRadius: '16px',
                 transform: 'rotate(0.5deg)',
-                boxShadow: '4px 4px 0px 0px rgba(42, 42, 42, 0.3)',
+                boxShadow: '4px 4px 0px 0px var(--border)',
               }}
             >
               <h2 
@@ -494,18 +499,18 @@ export default function Lobby() {
             <div 
               className="p-4 h-[500px] flex flex-col"
               style={{
-                backgroundColor: '#ffffff',
-                border: '4px solid #2a2a2a',
+                backgroundColor: 'var(--card)',
+                border: '4px solid var(--foreground)',
                 borderRadius: '16px',
                 transform: 'rotate(-0.5deg)',
-                boxShadow: '4px 4px 0px 0px rgba(42, 42, 42, 0.3)',
+                boxShadow: '4px 4px 0px 0px var(--border)',
               }}
             >
               <h3 
                 className="text-2xl mb-4 pb-3"
                 style={{
                   fontFamily: "'Bubblegum Sans', cursive",
-                  borderBottom: '2px dashed rgba(42, 42, 42, 0.2)',
+                  borderBottom: '2px dashed var(--border)',
                 }}
               >
                 Chat 💬
@@ -518,8 +523,8 @@ export default function Lobby() {
                     key={msg.id}
                     className="p-2 rounded-lg"
                     style={{
-                      backgroundColor: msg.isSystem ? '#f0f0e0' : 'rgba(94, 179, 246, 0.1)',
-                      color: msg.isSystem ? '#6a6a6a' : '#2a2a2a',
+                      backgroundColor: msg.isSystem ? 'var(--muted)' : 'rgba(94, 179, 246, 0.1)',
+                      color: msg.isSystem ? 'var(--muted-foreground)' : 'var(--foreground)',
                       fontStyle: msg.isSystem ? 'italic' : 'normal',
                       textAlign: msg.isSystem ? 'center' : 'left',
                     }}
@@ -541,7 +546,9 @@ export default function Lobby() {
                   onChange={(e) => setChatMessage(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                   style={{
-                    border: '2px solid #2a2a2a',
+                    backgroundColor: 'var(--card)',
+                    color: 'var(--foreground)',
+                    border: '2px solid var(--border)',
                     outline: 'none',
                   }}
                   onFocus={(e) => {
@@ -588,10 +595,11 @@ function PlayerCard({ player, isAdmin, myUsername, onKick }: {
       className="p-4 transition-all hover:scale-105"
       style={{
         backgroundColor: player.isReady ? '#bae1ba' : '#ffb3ba',
+        color: '#2a2a2a',
         border: '3px solid #2a2a2a',
         borderRadius: '12px',
         transform: 'rotate(-0.5deg)',
-        boxShadow: '2px 2px 0px 0px rgba(42, 42, 42, 0.3)',
+        boxShadow: '2px 2px 0px 0px var(--border)',
       }}
     >
       <div className="flex items-center gap-3">
@@ -602,7 +610,7 @@ function PlayerCard({ player, isAdmin, myUsername, onKick }: {
             {player.isAdmin && ' 👑'}
             {player.name === myUsername && ' (You)'}
           </p>
-          <p className="text-sm" style={{ color: '#6a6a6a' }}>
+          <p className="text-sm" style={{ color: 'rgba(42, 42, 42, 0.8)' }}>
             {player.isReady ? '✓ Ready' : 'Not ready'}
           </p>
         </div>
@@ -613,7 +621,7 @@ function PlayerCard({ player, isAdmin, myUsername, onKick }: {
             style={{
               backgroundColor: '#ff6b6b',
               color: '#ffffff',
-              border: '2px solid #2a2a2a',
+              border: '2px solid var(--border)',
               borderRadius: '8px',
             }}
           >

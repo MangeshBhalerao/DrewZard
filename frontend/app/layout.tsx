@@ -6,6 +6,8 @@ export const metadata: Metadata = {
   description: 'A fun drawing and guessing game',
 }
 
+import { ThemeToggle } from '@/components/ThemeToggle'
+
 export default function RootLayout({
   children,
 }: {
@@ -13,7 +15,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <ThemeToggle />
+        {children}
+      </body>
     </html>
   )
 }

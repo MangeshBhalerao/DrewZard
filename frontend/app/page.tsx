@@ -35,14 +35,14 @@ export default function Landing() {
             className="text-7xl md:text-9xl mb-4 select-none"
             style={{
               fontFamily: "'Bubblegum Sans', cursive",
-              color: '#2a2a2a',
+              color: 'var(--foreground)',
               textShadow: '4px 4px 0px rgba(94, 179, 246, 0.4), 8px 8px 0px rgba(255, 217, 102, 0.3)',
               transform: 'rotate(-2deg)',
             }}
           >
             DrewZard
           </h1>
-          <p className="text-2xl" style={{ transform: 'rotate(0.5deg)', color: '#6a6a6a' }}>
+          <p className="text-2xl" style={{ transform: 'rotate(0.5deg)', color: 'var(--muted-foreground)' }}>
             Draw, Guess, Win! ✏️
           </p>
         </div>
@@ -59,9 +59,9 @@ export default function Landing() {
           </SketchyButton>
 
           <div className="flex items-center gap-4">
-            <div className="flex-1 h-1" style={{ backgroundColor: 'rgba(42, 42, 42, 0.2)', transform: 'rotate(-1deg)' }} />
-            <span className="text-xl" style={{ color: '#6a6a6a' }}>OR</span>
-            <div className="flex-1 h-1" style={{ backgroundColor: 'rgba(42, 42, 42, 0.2)', transform: 'rotate(1deg)' }} />
+            <div className="flex-1 h-1" style={{ backgroundColor: 'var(--border)', transform: 'rotate(-1deg)' }} />
+            <span className="text-xl" style={{ color: 'var(--muted-foreground)' }}>OR</span>
+            <div className="flex-1 h-1" style={{ backgroundColor: 'var(--border)', transform: 'rotate(1deg)' }} />
           </div>
 
           <div className="space-y-3">
@@ -88,11 +88,11 @@ export default function Landing() {
           <div 
             className="p-8 mb-8"
             style={{
-              backgroundColor: '#ffffff',
-              border: '4px solid #2a2a2a',
+              backgroundColor: 'var(--background)',
+              border: '4px solid var(--foreground)',
               borderRadius: '16px',
               transform: 'rotate(-0.5deg)',
-              boxShadow: '5px 5px 0px 0px rgba(42, 42, 42, 0.3)',
+              boxShadow: '5px 5px 0px 0px var(--border)',
             }}
           >
             <h2 
@@ -100,6 +100,7 @@ export default function Landing() {
               style={{
                 fontFamily: "'Bubblegum Sans', cursive",
                 transform: 'rotate(1deg)',
+                color: 'var(--foreground)'
               }}
             >
               How to Play 📖
@@ -151,17 +152,17 @@ function HowToPlayCard({ icon, title, description, color }: HowToPlayCardProps) 
       className="p-6 transition-transform hover:scale-105"
       style={{
         backgroundColor: color,
-        border: '3px solid #2a2a2a',
+        border: '3px solid var(--foreground)',
         borderRadius: '12px',
         transform: 'rotate(-0.5deg)',
-        boxShadow: '3px 3px 0px 0px rgba(42, 42, 42, 0.3)',
+        boxShadow: '3px 3px 0px 0px var(--border)',
       }}
     >
       <div className="flex items-start gap-4">
         <div style={{ color: '#2a2a2a' }}>{icon}</div>
         <div>
           <h3 className="text-2xl mb-2" style={{ color: '#2a2a2a' }}>{title}</h3>
-          <p className="text-lg" style={{ color: 'rgba(42, 42, 42, 0.8)' }}>{description}</p>
+          <p className="text-lg" style={{ color: '#2a2a2a' }}>{description}</p>
         </div>
       </div>
     </div>

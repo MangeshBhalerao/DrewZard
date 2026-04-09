@@ -438,6 +438,41 @@ video {
 [hidden]:where(:not([hidden="until-found"])) {
   display: none;
 }
+:root {
+    --background: #f9f9eb;
+    --card: #ffffff;
+    --foreground: #2a2a2a;
+    --primary: #5eb3f6;
+    --primary-foreground: #2a2a2a;
+    --secondary: #ffd966;
+    --secondary-foreground: #2a2a2a;
+    --accent: #ffb3ba;
+    --accent-foreground: #2a2a2a;
+    --muted: #f0f0e0;
+    --muted-foreground: #6a6a6a;
+    --destructive: #ff6b6b;
+    --destructive-foreground: #ffffff;
+    --border: rgba(42, 42, 42, 0.2);
+    --ring: rgba(94, 179, 246, 0.5);
+  }
+.dark {
+    /* Beautiful modern gray dark theme like VS Code */
+    --background: #1e1e1e; /* Vscode background */
+    --card: #252526; /* Vscode panel background */
+    --foreground: #cccccc; /* Vscode text */
+    --primary: #5eb3f6; 
+    --primary-foreground: #2a2a2a; /* Keep dark text for light boxes */
+    --secondary: #ffd966;
+    --secondary-foreground: #2a2a2a; /* Keep dark text for light boxes */
+    --accent: #ffb3ba;
+    --accent-foreground: #2a2a2a; /* Keep dark text for light boxes */
+    --muted: #2d2d30; 
+    --muted-foreground: #999999; 
+    --destructive: #ff6b6b;
+    --destructive-foreground: #ffffff;
+    --border: #3e3e42;
+    --ring: rgba(94, 179, 246, 0.5);
+  }
 *{
   outline: 2px solid transparent;
   outline-offset: 2px;
@@ -445,14 +480,13 @@ video {
 html {
     font-size: 16px;
   }
-body{
-  --tw-bg-opacity: 1;
-  background-color: rgb(249 249 235 / var(--tw-bg-opacity, 1));
-  font-family: Patrick Hand, cursive;
-  --tw-text-opacity: 1;
-  color: rgb(42 42 42 / var(--tw-text-opacity, 1));
+body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: Patrick Hand, cursive;
     font-family: 'Patrick Hand', cursive;
-}
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
 h1 {
     font-size: 1.5rem;
     font-weight: 500;
@@ -570,6 +604,9 @@ input {
 .right-20{
   right: 5rem;
 }
+.right-4{
+  right: 1rem;
+}
 .right-40{
   right: 10rem;
 }
@@ -593,6 +630,9 @@ input {
 }
 .top-32{
   top: 8rem;
+}
+.top-4{
+  top: 1rem;
 }
 .top-full{
   top: 100%;
@@ -1076,6 +1116,13 @@ input {
   --tw-blur: blur(8px);
   filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
 }
+.invert{
+  --tw-invert: invert(100%);
+  filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
+}
+.filter{
+  filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
+}
 .transition{
   transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
@@ -1106,28 +1153,28 @@ input {
 }
 
 ::-webkit-scrollbar-track {
-  background: #f0f0e0;
+  background: var(--muted);
   border-radius: 5px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #5eb3f6;
+  background: var(--primary);
   border-radius: 5px;
-  border: 2px solid #2a2a2a;
+  border: 2px solid var(--foreground);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #4a9fd6;
+  background: var(--ring);
 }
 
 /* Selection Styling */
 ::-moz-selection {
-  background: #ffd966;
-  color: #2a2a2a;
+  background: var(--secondary);
+  color: var(--secondary-foreground);
 }
 ::selection {
-  background: #ffd966;
-  color: #2a2a2a;
+  background: var(--secondary);
+  color: var(--secondary-foreground);
 }
 
 /* Prevent text selection on buttons and interactive elements */
