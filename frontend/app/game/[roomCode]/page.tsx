@@ -35,6 +35,7 @@ export default function Game() {
   const hasConnectedRef = useRef(false);
   
   const [isDrawing, setIsDrawing] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [currentColor, setCurrentColor] = useState(COLORS[0].value);
   const [brushSize, setBrushSize] = useState(5);
   const [timeLeft, setTimeLeft] = useState(80);
@@ -115,6 +116,18 @@ export default function Game() {
       setJoined(true);
     }
   }, []);
+
+  // Theme tracking
+  useEffect(() => {
+    const updateTheme = () => {
+      const isDark = document.documentElement.classList.contains('dark');
+      setTheme(isDark ? 'dark' : 'light');
+    };
+    updateTheme(); // Initial check
+    window.addEventListener('themeChanged', updateTheme);
+    return () => window.removeEventListener('themeChanged', updateTheme);
+  }, []);
+
 
   const handleJoin = () => {
     if (username.trim()) {
@@ -359,12 +372,13 @@ export default function Game() {
       {!joined && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
           <div 
-            className="bg-white p-8 flex flex-col gap-4"
+            className="p-8 flex flex-col gap-4"
             style={{
-              border: '4px solid #2a2a2a',
+              backgroundColor: 'var(--card)',
+              border: '4px solid var(--foreground)',
               borderRadius: '16px',
               transform: 'rotate(-1deg)',
-              boxShadow: '5px 5px 0px 0px rgba(42, 42, 42, 0.3)',
+              boxShadow: '5px 5px 0px 0px var(--border)',
             }}
           >
             <h2 
@@ -381,7 +395,9 @@ export default function Game() {
               placeholder="Your name"
               autoFocus
               style={{
-                border: '3px solid #2a2a2a',
+                backgroundColor: 'var(--background)',
+                color: 'var(--foreground)',
+                border: '3px solid var(--foreground)',
                 borderRadius: '8px',
                 outline: 'none',
               }}
@@ -401,13 +417,13 @@ export default function Game() {
       {/* Outer wrapper - natural scroll on all screen sizes */}
       <div className="relative z-10 flex flex-col min-h-screen">
         {/* Header */}
-        <div className="p-3 border-b-4 border-solid sticky top-0 z-30" style={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)', borderColor: '#2a2a2a' }}>
+        <div className="p-3 border-b-4 border-solid sticky top-0 z-30" style={{ backgroundColor: theme === 'dark' ? 'rgba(37, 37, 38, 0.95)' : 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)', borderColor: '#2a2a2a' }}>
           <div className="container mx-auto flex items-center justify-between gap-2">
             {/* Leave button — always visible */}
             <button
               onClick={() => router.push(`/lobby/${roomCode}`)}
               className="flex items-center gap-2 transition-colors"
-              style={{ color: '#2a2a2a' }}
+              style={{ color: 'var(--foreground)' }}
               onMouseEnter={(e) => e.currentTarget.style.color = '#5eb3f6'}
               onMouseLeave={(e) => e.currentTarget.style.color = '#2a2a2a'}
             >
@@ -420,7 +436,7 @@ export default function Game() {
               {/* Round — left */}
               <div
                 className="px-2 py-1"
-                style={{ backgroundColor: '#bae1ba', border: '3px solid #2a2a2a', borderRadius: '8px', minWidth: '56px', textAlign: 'center' }}
+                style={{ backgroundColor: '#bae1ba', border: '3px solid var(--foreground)', borderRadius: '8px', minWidth: '56px', textAlign: 'center', color: '#2a2a2a' }}
               >
                 <span className="text-xs">Round: </span>
                 <span className="text-lg font-bold" style={{ fontFamily: "'Bubblegum Sans', cursive" }}>{round || '-'}</span>
@@ -440,7 +456,7 @@ export default function Game() {
             <div className="hidden md:flex items-center gap-4">
               <div
                 className="px-4 py-2"
-                style={{ backgroundColor: '#ffd966', border: '3px solid #2a2a2a', borderRadius: '8px' }}
+                style={{ backgroundColor: '#ffd966', border: '3px solid var(--foreground)', borderRadius: '8px', color: '#2a2a2a' }}
               >
                 <span className="text-sm">Room: </span>
                 <span className="text-xl" style={{ fontFamily: "'Bubblegum Sans', cursive" }}>{roomCode}</span>
@@ -448,7 +464,7 @@ export default function Game() {
               {round > 0 && (
                 <div
                   className="px-4 py-2"
-                  style={{ backgroundColor: '#bae1ba', border: '3px solid #2a2a2a', borderRadius: '8px' }}
+                  style={{ backgroundColor: '#bae1ba', border: '3px solid var(--foreground)', borderRadius: '8px', color: '#2a2a2a' }}
                 >
                   <span className="text-sm">Round: </span>
                   <span className="text-xl" style={{ fontFamily: "'Bubblegum Sans', cursive" }}>{round}</span>
@@ -457,7 +473,7 @@ export default function Game() {
               <Timer seconds={timeLeft} />
             </div>
             <div className="text-right hidden md:block">
-              <p className="text-sm" style={{ color: '#6a6a6a' }}>
+              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
                 {username === drawer ? "You're drawing:" : "Guess the word:"}
               </p>
               <p
@@ -480,8 +496,8 @@ export default function Game() {
               <div 
                 className="p-2 sm:p-3"
                 style={{
-                  backgroundColor: '#ffffff',
-                  border: '4px solid #2a2a2a',
+                  backgroundColor: 'var(--card)',
+                  border: '4px solid var(--foreground)',
                   borderRadius: '12px',
                   transform: 'rotate(-0.3deg)',
                   boxShadow: '3px 3px 0px 0px rgba(42, 42, 42, 0.3)',
@@ -499,7 +515,7 @@ export default function Game() {
                         className={`w-8 h-8 rounded-full transition-transform hover:scale-110 ${currentColor === c.value ? 'scale-110' : ''}`}
                         style={{ 
                           backgroundColor: c.value,
-                          border: '3px solid #2a2a2a',
+                          border: '3px solid var(--foreground)',
                           boxShadow: currentColor === c.value ? '0 0 0 3px rgba(94,179,246,0.6)' : '2px 2px 0 rgba(42,42,42,0.3)',
                         }}
                         onClick={() => setCurrentColor(c.value)}
@@ -515,8 +531,8 @@ export default function Game() {
                         key={size}
                         className="w-8 h-8 flex items-center justify-center rounded-lg transition-all hover:scale-110"
                         style={{
-                          border: '2px solid #2a2a2a',
-                          backgroundColor: brushSize === size ? '#5eb3f6' : '#ffffff',
+                          border: '2px solid var(--border)',
+                          backgroundColor: brushSize === size ? 'var(--primary)' : 'var(--card)',
                         }}
                         onClick={() => setBrushSize(size)}
                         title={`${size}px`}
@@ -527,14 +543,14 @@ export default function Game() {
                   </div>
                   <div className="h-8 w-px" style={{ backgroundColor: 'rgba(42,42,42,0.2)' }} />
                   {/* Action buttons */}
-                  <button className="p-1.5 rounded-lg hover:scale-110 transition-transform" style={{ backgroundColor: '#ffb3ba', border: '2px solid #2a2a2a' }} onClick={() => { setCurrentColor('#ffffff'); setFillMode(false); }} title="Eraser"><Eraser className="w-5 h-5" /></button>
-                  <button className="p-1.5 rounded-lg hover:scale-110 transition-transform flex items-center gap-1" style={{ backgroundColor: fillMode ? '#ff6b6b' : '#e8d5ff', border: fillMode ? '3px solid #2a2a2a' : '2px solid #2a2a2a' }} onClick={() => setFillMode(f => !f)} title="Fill">
+                  <button className="p-1.5 rounded-lg hover:scale-110 transition-transform" style={{ backgroundColor: '#ffb3ba', border: '2px solid var(--border)', color: '#2a2a2a' }} onClick={() => { setCurrentColor('#ffffff'); setFillMode(false); }} title="Eraser"><Eraser className="w-5 h-5" /></button>
+                  <button className="p-1.5 rounded-lg hover:scale-110 transition-transform flex items-center gap-1" style={{ backgroundColor: fillMode ? '#ff6b6b' : '#e8d5ff', border: fillMode ? '3px solid #2a2a2a' : '2px solid #2a2a2a', color: '#2a2a2a' }} onClick={() => setFillMode(f => !f)} title="Fill">
                     <span className="text-base leading-none">🪣</span>
                     {fillMode && <span className="text-xs font-bold">ON</span>}
                   </button>
-                  <button className="p-1.5 rounded-lg hover:scale-110 transition-transform" style={{ backgroundColor: '#ff6b6b', color: '#fff', border: '2px solid #2a2a2a' }} onClick={clearCanvas} title="Clear"><Trash2 className="w-5 h-5" /></button>
-                  <button className="p-1.5 rounded-lg hover:scale-110 transition-transform" style={{ backgroundColor: '#bae1ba', border: '2px solid #2a2a2a' }} onClick={() => canvasRef.current?.undo()} title="Undo"><Undo className="w-5 h-5" /></button>
-                  <button className="p-1.5 rounded-lg hover:scale-110 transition-transform" style={{ backgroundColor: '#bae1ba', border: '2px solid #2a2a2a' }} onClick={() => canvasRef.current?.redo()} title="Redo"><Redo className="w-5 h-5" /></button>
+                  <button className="p-1.5 rounded-lg hover:scale-110 transition-transform" style={{ backgroundColor: '#ff6b6b', color: '#fff', border: '2px solid var(--border)' }} onClick={clearCanvas} title="Clear"><Trash2 className="w-5 h-5" /></button>
+                  <button className="p-1.5 rounded-lg hover:scale-110 transition-transform" style={{ backgroundColor: '#bae1ba', border: '2px solid var(--border)', color: '#2a2a2a' }} onClick={() => canvasRef.current?.undo()} title="Undo"><Undo className="w-5 h-5" /></button>
+                  <button className="p-1.5 rounded-lg hover:scale-110 transition-transform" style={{ backgroundColor: '#bae1ba', border: '2px solid var(--border)', color: '#2a2a2a' }} onClick={() => canvasRef.current?.redo()} title="Redo"><Redo className="w-5 h-5" /></button>
                 </div>
 
                 {/* ── Mobile toolbar (one compact row) ── */}
@@ -542,11 +558,11 @@ export default function Game() {
                   {/* Color picker trigger */}
                   <button
                     className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg"
-                    style={{ border: '2px solid #2a2a2a', backgroundColor: '#ffffff' }}
+                    style={{ border: '2px solid var(--border)', backgroundColor: 'var(--card)' }}
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={() => setShowColorPicker(p => !p)}
                   >
-                    <div className="w-5 h-5 rounded-full" style={{ backgroundColor: currentColor, border: '2px solid #2a2a2a' }} />
+                    <div className="w-5 h-5 rounded-full" style={{ backgroundColor: currentColor, border: '2px solid var(--border)' }} />
                     <span className="text-xs font-bold">Color</span>
                     <span className="text-xs">{showColorPicker ? '▲' : '▼'}</span>
                   </button>
@@ -555,7 +571,7 @@ export default function Game() {
                   {showColorPicker && (
                     <div
                       className="absolute top-full left-0 mt-2 p-2 grid grid-cols-4 gap-1.5"
-                      style={{ backgroundColor: '#fff', border: '3px solid #2a2a2a', borderRadius: '10px', boxShadow: '4px 4px 0 rgba(42,42,42,0.3)', zIndex: 9999 }}
+                      style={{ backgroundColor: '#fff', border: '3px solid var(--foreground)', borderRadius: '10px', boxShadow: '4px 4px 0 rgba(42,42,42,0.3)', zIndex: 9999 }}
                       onPointerDown={(e) => e.stopPropagation()}
                     >
                       {COLORS.map((c) => (
@@ -575,7 +591,7 @@ export default function Game() {
                   {/* Brush size picker trigger */}
                   <button
                     className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg"
-                    style={{ border: '2px solid #2a2a2a', backgroundColor: '#ffffff' }}
+                    style={{ border: '2px solid var(--border)', backgroundColor: 'var(--card)' }}
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={() => setShowBrushPicker(p => !p)}
                   >
@@ -588,14 +604,14 @@ export default function Game() {
                   {showBrushPicker && (
                     <div
                       className="absolute top-full mt-2 p-2 flex flex-col gap-2"
-                      style={{ left: '90px', backgroundColor: '#fff', border: '3px solid #2a2a2a', borderRadius: '10px', boxShadow: '4px 4px 0 rgba(42,42,42,0.3)', zIndex: 9999 }}
+                      style={{ left: '90px', backgroundColor: '#fff', border: '3px solid var(--foreground)', borderRadius: '10px', boxShadow: '4px 4px 0 rgba(42,42,42,0.3)', zIndex: 9999 }}
                       onPointerDown={(e) => e.stopPropagation()}
                     >
                       {BRUSH_SIZES.map((size) => (
                         <button
                           key={size}
                           className="flex items-center gap-2 px-3 py-1.5 rounded-lg"
-                          style={{ border: '2px solid #2a2a2a', backgroundColor: brushSize === size ? '#5eb3f6' : '#ffffff', minWidth: '80px' }}
+                          style={{ border: '2px solid var(--border)', backgroundColor: brushSize === size ? 'var(--primary)' : 'var(--card)', minWidth: '80px' }}
                           onPointerDown={(e) => { e.stopPropagation(); setBrushSize(size); setShowBrushPicker(false); }}
                         >
                           <div className="rounded-full flex-shrink-0" style={{ width: `${Math.min(size, 14)}px`, height: `${Math.min(size, 14)}px`, backgroundColor: currentColor === '#ffffff' ? '#2a2a2a' : currentColor }} />
@@ -608,12 +624,12 @@ export default function Game() {
                   <div className="w-px h-6" style={{ backgroundColor: 'rgba(42,42,42,0.2)' }} />
 
                   {/* Action icons */}
-                  <button className="p-1.5 rounded-md" style={{ backgroundColor: '#ffb3ba', border: '2px solid #2a2a2a' }} onClick={() => { setCurrentColor('#ffffff'); setFillMode(false); }} title="Eraser"><Eraser className="w-4 h-4" /></button>
-                  <button className="p-1.5 rounded-md flex items-center gap-1" style={{ backgroundColor: fillMode ? '#ff6b6b' : '#e8d5ff', border: fillMode ? '3px solid #2a2a2a' : '2px solid #2a2a2a' }} onClick={() => setFillMode(f => !f)} title="Fill">
+                  <button className="p-1.5 rounded-md" style={{ backgroundColor: '#ffb3ba', border: '2px solid var(--border)', color: '#2a2a2a' }} onClick={() => { setCurrentColor('#ffffff'); setFillMode(false); }} title="Eraser"><Eraser className="w-4 h-4" /></button>
+                  <button className="p-1.5 rounded-md flex items-center gap-1" style={{ backgroundColor: fillMode ? '#ff6b6b' : '#e8d5ff', border: fillMode ? '3px solid #2a2a2a' : '2px solid #2a2a2a', color: '#2a2a2a' }} onClick={() => setFillMode(f => !f)} title="Fill">
                     <span className="text-sm leading-none">🪣</span>
                     {fillMode && <span className="text-xs font-bold">ON</span>}
                   </button>
-                  <button className="p-1.5 rounded-md" style={{ backgroundColor: '#ff6b6b', color: '#fff', border: '2px solid #2a2a2a' }} onClick={clearCanvas} title="Clear"><Trash2 className="w-4 h-4" /></button>
+                  <button className="p-1.5 rounded-md" style={{ backgroundColor: '#ff6b6b', color: '#fff', border: '2px solid var(--border)' }} onClick={clearCanvas} title="Clear"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </div>
               )}
@@ -624,7 +640,8 @@ export default function Game() {
                   className="p-4 text-center"
                   style={{
                     backgroundColor: '#ffd966',
-                    border: '4px solid #2a2a2a',
+                    color: '#2a2a2a',
+                    border: '4px solid var(--foreground)',
                     borderRadius: '12px',
                     transform: 'rotate(-0.5deg)',
                     boxShadow: '3px 3px 0px 0px rgba(42, 42, 42, 0.3)',
@@ -645,8 +662,8 @@ export default function Game() {
                 {/* Floating undo/redo — mobile only, top-left of canvas */}
                 {username === drawer && (
                   <div className="sm:hidden absolute top-2 left-2 flex gap-1.5" style={{ zIndex: 20 }}>
-                    <button className="p-2 rounded-lg" style={{ backgroundColor: '#bae1ba', border: '2px solid #2a2a2a', boxShadow: '2px 2px 0 rgba(42,42,42,0.3)' }} onClick={() => canvasRef.current?.undo()} title="Undo"><Undo className="w-4 h-4" /></button>
-                    <button className="p-2 rounded-lg" style={{ backgroundColor: '#bae1ba', border: '2px solid #2a2a2a', boxShadow: '2px 2px 0 rgba(42,42,42,0.3)' }} onClick={() => canvasRef.current?.redo()} title="Redo"><Redo className="w-4 h-4" /></button>
+                    <button className="p-2 rounded-lg" style={{ backgroundColor: '#bae1ba', border: '2px solid var(--border)', boxShadow: '2px 2px 0 rgba(42,42,42,0.3)', color: '#2a2a2a' }} onClick={() => canvasRef.current?.undo()} title="Undo"><Undo className="w-4 h-4" /></button>
+                    <button className="p-2 rounded-lg" style={{ backgroundColor: '#bae1ba', border: '2px solid var(--border)', boxShadow: '2px 2px 0 rgba(42,42,42,0.3)', color: '#2a2a2a' }} onClick={() => canvasRef.current?.redo()} title="Redo"><Redo className="w-4 h-4" /></button>
                   </div>
                 )}
                 {joined && (
@@ -664,12 +681,13 @@ export default function Game() {
                     onFillUsed={() => setFillMode(false)}
                     className="w-full h-full"
                     style={{ 
-                      border: '4px solid #2a2a2a',
+                      border: '4px solid var(--foreground)',
                       borderRadius: '12px',
-                      backgroundColor: '#ffffff',
+                      backgroundColor: 'var(--card)',
                       transform: 'rotate(0.2deg)',
-                      boxShadow: '4px 4px 0px 0px rgba(42, 42, 42, 0.3)',
+                      boxShadow: '4px 4px 0px 0px var(--border)',
                       display: 'block',
+                      filter: theme === 'dark' ? 'invert(0.85) hue-rotate(180deg)' : 'none',
                     }}
                   />
                 )}
@@ -682,8 +700,8 @@ export default function Game() {
               <div 
                 className="order-2 lg:order-1 p-3"
                 style={{
-                  backgroundColor: '#ffffff',
-                  border: '4px solid #2a2a2a',
+                  backgroundColor: 'var(--card)',
+                  border: '4px solid var(--foreground)',
                   borderRadius: '12px',
                   transform: 'rotate(-0.5deg)',
                   boxShadow: '3px 3px 0px 0px rgba(42, 42, 42, 0.3)',
@@ -704,6 +722,7 @@ export default function Game() {
                       className="flex items-center gap-1.5 p-1.5 rounded-lg"
                       style={{
                         backgroundColor: player.name === drawer ? '#ffd966' : '#f0f0e0',
+                        color: '#2a2a2a',
                         border: '2px solid rgba(42, 42, 42, 0.2)',
                         minWidth: 0,
                       }}
@@ -735,14 +754,14 @@ export default function Game() {
               <div 
                 className="order-1 lg:order-2 flex flex-col p-3"
                 style={{ minHeight: '320px',
-                  backgroundColor: '#ffffff',
-                  border: '4px solid #2a2a2a',
+                  backgroundColor: 'var(--card)',
+                  border: '4px solid var(--foreground)',
                   borderRadius: '12px',
                   transform: 'rotate(0.3deg)',
                   boxShadow: '3px 3px 0px 0px rgba(42, 42, 42, 0.3)',
                 }}
               >
-                  <div className="flex items-center justify-between mb-3 pb-2" style={{ borderBottom: '2px dashed rgba(42, 42, 42, 0.2)' }}>
+                  <div className="flex items-center justify-between mb-3 pb-2" style={{ borderBottom: '2px dashed var(--border)' }}>
                   <h3 
                     className="text-xl"
                     style={{ fontFamily: "'Bubblegum Sans', cursive" }}
@@ -753,7 +772,7 @@ export default function Game() {
                   <div className="flex items-center gap-2 md:hidden">
                     <span
                       className="px-2 py-0.5 text-sm font-bold rounded"
-                      style={{ backgroundColor: '#ffd966', border: '2px solid #2a2a2a', fontFamily: "'Bubblegum Sans', cursive" }}
+                      style={{ backgroundColor: '#ffd966', border: '2px solid var(--border)', fontFamily: "'Bubblegum Sans', cursive" }}
                     >
                       {roomCode}
                     </span>
@@ -767,6 +786,7 @@ export default function Game() {
                       className="p-2 rounded-lg"
                       style={{
                         backgroundColor: guess.isCorrect ? '#bae1ba' : '#f0f0e0',
+                        color: '#2a2a2a',
                       }}
                     >
                       <span className="font-bold">{guess.player}: </span>
@@ -786,7 +806,9 @@ export default function Game() {
                     onChange={(e) => setChatMessage(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSendGuess()}
                     style={{
-                      border: '2px solid #2a2a2a',
+                      backgroundColor: 'var(--card)',
+                      color: 'var(--foreground)',
+                      border: '2px solid var(--border)',
                       outline: 'none',
                     }}
                     onFocus={(e) => {
@@ -809,7 +831,7 @@ export default function Game() {
                     className="p-2 rounded-lg hover:scale-110 transition-transform"
                     style={{
                       backgroundColor: '#5eb3f6',
-                      border: '2px solid #2a2a2a',
+                      border: '2px solid var(--border)',
                     }}
                   >
                     <Send className="w-5 h-5" />
@@ -827,7 +849,7 @@ export default function Game() {
           <div 
             className="bg-white p-8 animate-bounce"
             style={{
-              border: '4px solid #2a2a2a',
+              border: '4px solid var(--foreground)',
               borderRadius: '16px',
               boxShadow: '8px 8px 0px 0px rgba(42, 42, 42, 0.3)',
             }}
@@ -848,10 +870,10 @@ export default function Game() {
           <div 
             className="bg-white p-8 flex flex-col gap-6"
             style={{
-              border: '4px solid #2a2a2a',
+              border: '4px solid var(--foreground)',
               borderRadius: '16px',
               transform: 'rotate(-1deg)',
-              boxShadow: '5px 5px 0px 0px rgba(42, 42, 42, 0.3)',
+              boxShadow: '5px 5px 0px 0px var(--border)',
               maxWidth: '500px',
             }}
           >
@@ -868,7 +890,7 @@ export default function Game() {
                 style={{
                   fontFamily: "'Bubblegum Sans', cursive",
                   backgroundColor: wordChoiceTimeLeft <= 5 ? '#ff6b6b' : '#ffd966',
-                  border: '3px solid #2a2a2a',
+                  border: '3px solid var(--foreground)',
                   color: wordChoiceTimeLeft <= 5 ? '#fff' : '#2a2a2a',
                   minWidth: '60px',
                   textAlign: 'center',
@@ -908,10 +930,10 @@ export default function Game() {
           <div 
             className="bg-white p-8 flex flex-col gap-6"
             style={{
-              border: '4px solid #2a2a2a',
+              border: '4px solid var(--foreground)',
               borderRadius: '16px',
               transform: 'rotate(-1deg)',
-              boxShadow: '5px 5px 0px 0px rgba(42, 42, 42, 0.3)',
+              boxShadow: '5px 5px 0px 0px var(--border)',
               maxWidth: '600px',
               width: '90%',
             }}
@@ -926,7 +948,8 @@ export default function Game() {
               className="p-4"
               style={{
                 backgroundColor: '#ffd966',
-                border: '3px solid #2a2a2a',
+                color: '#2a2a2a',
+                border: '3px solid var(--foreground)',
                 borderRadius: '12px',
               }}
             >
@@ -950,8 +973,9 @@ export default function Game() {
                     key={player.name}
                     className="flex justify-between items-center p-3"
                     style={{
-                      backgroundColor: index === 0 ? '#bae1ba' : '#ffffff',
-                      border: '2px solid #2a2a2a',
+                      backgroundColor: index === 0 ? '#bae1ba' : 'var(--card)',
+                      color: index === 0 ? '#2a2a2a' : undefined,
+                      border: '2px solid var(--border)',
                       borderRadius: '8px',
                     }}
                   >
@@ -1013,8 +1037,8 @@ function Timer({ seconds }: { seconds: number }) {
     <div 
       className="relative w-16 h-16 sm:w-24 sm:h-24 p-2"
       style={{ 
-        backgroundColor: '#ffffff',
-        border: '4px solid #2a2a2a',
+        backgroundColor: 'var(--card)',
+        border: '4px solid var(--foreground)',
         borderRadius: '50%',
         transform: 'rotate(-5deg)',
       }}

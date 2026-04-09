@@ -6,33 +6,34 @@ const config: Config = {
     './components/**/*.{js,ts,jsx,tsx,mdx}',
     './app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        background: '#f9f9eb',
-        foreground: '#2a2a2a',
+        background: 'var(--background)',
+        foreground: 'var(--foreground)',
         primary: {
-          DEFAULT: '#5eb3f6',
-          foreground: '#2a2a2a',
+          DEFAULT: 'var(--primary)',
+          foreground: 'var(--primary-foreground)',
         },
         secondary: {
-          DEFAULT: '#ffd966',
-          foreground: '#2a2a2a',
+          DEFAULT: 'var(--secondary)',
+          foreground: 'var(--secondary-foreground)',
         },
         accent: {
-          DEFAULT: '#ffb3ba',
-          foreground: '#2a2a2a',
+          DEFAULT: 'var(--accent)',
+          foreground: 'var(--accent-foreground)',
         },
         muted: {
-          DEFAULT: '#f0f0e0',
-          foreground: '#6a6a6a',
+          DEFAULT: 'var(--muted)',
+          foreground: 'var(--muted-foreground)',
         },
         destructive: {
-          DEFAULT: '#ff6b6b',
-          foreground: '#ffffff',
+          DEFAULT: 'var(--destructive)',
+          foreground: 'var(--destructive-foreground)',
         },
-        border: 'rgba(42, 42, 42, 0.2)',
-        ring: 'rgba(94, 179, 246, 0.5)',
+        border: 'var(--border)',
+        ring: 'var(--ring)',
       },
       fontFamily: {
         hand: ['Patrick Hand', 'cursive'],

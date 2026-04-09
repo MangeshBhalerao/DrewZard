@@ -323,7 +323,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
         // Reset transform then scale once (avoids accumulation on repeated resize)
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-        // White background
+        // Set background explicitly to white representing the canvas
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, displayWidth, displayHeight);
 
@@ -517,7 +517,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
           ...style,
           touchAction: 'none',
           cursor: isDrawer ? (fillMode ? 'cell' : 'crosshair') : 'not-allowed',
-          opacity: isDrawer ? 1 : 0.6,
+          opacity: 1,
         }}
         onMouseDown={startDrawing}
         onMouseMove={draw}

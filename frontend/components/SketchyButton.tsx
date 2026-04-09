@@ -22,24 +22,24 @@ export function SketchyButton({
 
   const variantStyles = {
     primary: { 
-      backgroundColor: '#5eb3f6', 
-      color: '#2a2a2a',
-      boxShadow: '3px 3px 0px 0px rgba(42, 42, 42, 0.3)'
+      backgroundColor: 'var(--primary)', 
+      color: 'var(--primary-foreground)',
+      boxShadow: '3px 3px 0px 0px var(--border)'
     },
     secondary: { 
-      backgroundColor: '#ffd966', 
-      color: '#2a2a2a',
-      boxShadow: '3px 3px 0px 0px rgba(42, 42, 42, 0.3)'
+      backgroundColor: 'var(--secondary)', 
+      color: 'var(--secondary-foreground)',
+      boxShadow: '3px 3px 0px 0px var(--border)'
     },
     accent: { 
-      backgroundColor: '#ffb3ba', 
-      color: '#2a2a2a',
-      boxShadow: '3px 3px 0px 0px rgba(42, 42, 42, 0.3)'
+      backgroundColor: 'var(--accent)', 
+      color: 'var(--accent-foreground)',
+      boxShadow: '3px 3px 0px 0px var(--border)'
     },
     success: { 
-      backgroundColor: '#bae1ba', 
-      color: '#2a2a2a',
-      boxShadow: '3px 3px 0px 0px rgba(42, 42, 42, 0.3)'
+      backgroundColor: 'var(--destructive)', 
+      color: 'var(--destructive-foreground)',
+      boxShadow: '3px 3px 0px 0px var(--border)'
     },
   };
 
@@ -55,7 +55,7 @@ export function SketchyButton({
       style={{
         ...variantStyles[variant],
         borderRadius: '12px',
-        border: '3px solid #2a2a2a',
+        border: '3px solid var(--foreground)',
         transform: 'rotate(-0.5deg)',
       }}
       {...props}

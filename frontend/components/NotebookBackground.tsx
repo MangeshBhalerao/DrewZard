@@ -8,8 +8,8 @@ export function NotebookBackground() {
           backgroundImage: `repeating-linear-gradient(
             transparent,
             transparent 31px,
-            rgba(94, 179, 246, 0.15) 31px,
-            rgba(94, 179, 246, 0.15) 32px
+            var(--ring) 31px,
+            var(--ring) 32px
           )`,
           backgroundSize: '100% 32px',
         }}
@@ -18,7 +18,8 @@ export function NotebookBackground() {
       <div 
         className="absolute left-16 top-0 bottom-0 w-0.5"
         style={{
-          background: 'rgba(255, 107, 107, 0.3)',
+          backgroundColor: 'var(--destructive)',
+          opacity: 0.3,
         }}
       />
     </div>
